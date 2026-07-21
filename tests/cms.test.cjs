@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
-const { stripInternal, synchronizeJourney, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
+const { migrateAirportMetrics, stripInternal, synchronizeJourney, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
 
 const root = path.resolve(__dirname, '..');
 const data = JSON.parse(fs.readFileSync(path.join(root, 'content/journeys/kanto-6d.json'), 'utf8'));
@@ -27,13 +27,29 @@ test('静态生成结果幂等并保留三个CMS区块', () => {
 test('官网逐日使用后台当前的行车里程与预计驾驶时间', () => {
   const rendered = renderSite(html, data);
   for (const day of data.days) {
-    const distance = `行车里程：${day.distance.value}${day.distance.note ? `<br>${day.distance.note}` : ''}`;
-    const duration = `预计驾驶时间：${day.duration.value}${day.duration.note ? `<br>${day.duration.note}` : ''}`;
-    assert.ok(rendered.includes(distance));
-    assert.ok(rendered.includes(duration));
+    for (const line of [...day.distance.value.split('\n'), ...day.duration.value.split('\n')]) {
+      for (const part of line.split('：')) assert.ok(rendered.includes(part));
+    }
+    assert.ok(rendered.includes(day.distance.note));
+    assert.ok(rendered.includes(day.duration.note));
   }
   assert.doesNotMatch(rendered, /参考车程：/);
   assert.doesNotMatch(rendered, /预计耗时：/);
+});
+
+test('接送机双机场路线在官网与后台预览中逐行展示', () => {
+  const rendered = renderSite(html, data);
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  assert.match(rendered, /metric-card--routes/);
+  assert.match(rendered, /metric-route-name">羽田机场 → 东京酒店/);
+  assert.match(rendered, /metric-route-value">约30—50分钟/);
+  assert.match(rendered, /metric-route-name">东京酒店 → 成田机场/);
+  assert.doesNotMatch(rendered, /羽田约30—50分钟｜成田约60—90分钟/);
+  assert.match(adminSource, /preview-metric-routes/);
+  assert.match(adminSource, /多条路线时，每条路线占一行/);
+  assert.match(adminStyles, /\.preview-metric-route > b[\s\S]*?white-space:\s*nowrap/);
+  assert.match(rendered, /v29\.1: keep airport transfer routes and values on clear independent lines/);
 });
 
 test('官网行程数据卡与后台预览保持两列并在手机端切换单列', () => {
@@ -130,7 +146,24 @@ test('接送机日按羽田与成田分别显示车程和驾驶时间', () => {
     assert.match(day.distance.value, /成田/);
     assert.match(day.duration.value, /羽田/);
     assert.match(day.duration.value, /成田/);
+    assert.match(day.distance.value, /\n/);
+    assert.match(day.duration.value, /\n/);
+    assert.doesNotMatch(day.distance.value, /｜/);
+    assert.doesNotMatch(day.duration.value, /｜/);
   }
+});
+
+test('旧草稿中的双机场单行数据会安全迁移，不会再次覆盖新排版', () => {
+  const legacy = structuredClone(data);
+  legacy.days[0].distance.value = '羽田约20—25公里｜成田约65—75公里';
+  legacy.days[0].duration.value = '羽田约30—50分钟｜成田约60—90分钟';
+  legacy.days[5].distance.value = '羽田约20—25公里｜成田约65—75公里';
+  legacy.days[5].duration.value = '羽田约30—50分钟｜成田约60—90分钟';
+  migrateAirportMetrics(legacy);
+  assert.equal(legacy.days[0].distance.value, data.days[0].distance.value);
+  assert.equal(legacy.days[0].duration.value, data.days[0].duration.value);
+  assert.equal(legacy.days[5].distance.value, data.days[5].distance.value);
+  assert.equal(legacy.days[5].duration.value, data.days[5].duration.value);
 });
 
 test('同一个后台在手机端保留保存入口且官网提供手机菜单', () => {

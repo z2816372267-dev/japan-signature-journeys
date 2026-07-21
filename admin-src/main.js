@@ -251,8 +251,12 @@ function renderOverviewEditor() {
 
 function metricEditor(dayPath, key, eyebrow, label) {
   const metric = getPath(`${dayPath}.${key}`);
+  const multiline = key === 'distance' || key === 'duration';
+  const valueControl = multiline
+    ? `<textarea data-path="${dayPath}.${key}.value" data-max="120" data-size="metric" maxlength="120" aria-label="${escapeHtml(label)}" placeholder="多条路线时，每条路线占一行">${escapeHtml(metric?.value || '')}</textarea>`
+    : `<input data-path="${dayPath}.${key}.value" data-max="120" maxlength="120" value="${escapeHtml(metric?.value || '')}" aria-label="${escapeHtml(label)}" />`;
   return `<div class="metric-editor"><small>${escapeHtml(eyebrow)} · ${escapeHtml(label)}</small>
-    <input data-path="${dayPath}.${key}.value" data-max="120" maxlength="120" value="${escapeHtml(metric?.value || '')}" aria-label="${escapeHtml(label)}" />
+    ${valueControl}
     <input data-path="${dayPath}.${key}.note" data-max="160" maxlength="160" value="${escapeHtml(metric?.note || '')}" aria-label="${escapeHtml(label)}补充说明" placeholder="补充说明" />
   </div>`;
 }
@@ -589,10 +593,23 @@ function previewSectionTitle(kicker, title, copy) {
   return `<header class="preview-section-title"><small>${escapeHtml(kicker)}</small><h3>${escapeHtml(title)}</h3>${copy ? `<p>${escapeHtml(copy)}</p>` : ''}</header>`;
 }
 
+function metricLines(value) {
+  return String(value ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function previewMetricRoute(line) {
+  const separator = line.indexOf('：');
+  if (separator < 1) return `<span class="preview-metric-route">${escapeHtml(line)}</span>`;
+  return `<span class="preview-metric-route"><span>${escapeHtml(line.slice(0, separator))}</span><b>${escapeHtml(line.slice(separator + 1))}</b></span>`;
+}
+
 function previewMetric(eyebrow, label, metric) {
-  const value = metric?.value || '待补充';
+  const lines = metricLines(metric?.value || '待补充');
   const note = metric?.note || '';
-  return `<div><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}：${escapeHtml(value)}</strong>${note ? `<span>${escapeHtml(note)}</span>` : ''}</div>`;
+  if (lines.length > 1) {
+    return `<div class="preview-metric preview-metric--routes"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><span class="preview-metric-routes">${lines.map(previewMetricRoute).join('')}</span>${note ? `<span class="preview-metric-note">${withBreaks(note)}</span>` : ''}</div>`;
+  }
+  return `<div class="preview-metric"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}：${escapeHtml(lines[0] || '')}</strong>${note ? `<span class="preview-metric-note">${withBreaks(note)}</span>` : ''}</div>`;
 }
 
 function renderOverviewPreview(data) {

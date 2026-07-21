@@ -157,6 +157,7 @@ async function readPublishedContent() {
 
 async function getContent(actor) {
   const draft = await readDoc(COLLECTIONS.drafts, 'kanto-6d');
+  const draftContent = draft?.content ? validateJourney(structuredClone(draft.content)) : null;
   let published = null;
   try {
     published = await readPublishedContent();
@@ -164,7 +165,7 @@ async function getContent(actor) {
     if (!draft?.content) throw error;
   }
   return {
-    content: draft?.content || published,
+    content: draftContent || published,
     published,
     draftInfo: draft
       ? {

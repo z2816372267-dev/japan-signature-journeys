@@ -1,5 +1,34 @@
 'use strict';
 
+const AIRPORT_METRIC_MIGRATIONS = Object.freeze([
+  {
+    dayIndex: 0,
+    values: {
+      distance: {
+        legacy: '羽田约20—25公里｜成田约65—75公里',
+        current: '羽田机场 → 东京酒店：约20—25公里\n成田机场 → 东京酒店：约65—75公里',
+      },
+      duration: {
+        legacy: '羽田约30—50分钟｜成田约60—90分钟',
+        current: '羽田机场 → 东京酒店：约30—50分钟\n成田机场 → 东京酒店：约60—90分钟',
+      },
+    },
+  },
+  {
+    dayIndex: 5,
+    values: {
+      distance: {
+        legacy: '羽田约20—25公里｜成田约65—75公里',
+        current: '东京酒店 → 羽田机场：约20—25公里\n东京酒店 → 成田机场：约65—75公里',
+      },
+      duration: {
+        legacy: '羽田约30—50分钟｜成田约60—90分钟',
+        current: '东京酒店 → 羽田机场：约30—50分钟\n东京酒店 → 成田机场：约60—90分钟',
+      },
+    },
+  },
+]);
+
 function cmsError(code, message, status = 400) {
   const error = new Error(message);
   error.code = code;
@@ -44,8 +73,21 @@ function validateImage(image, label, optional = false) {
   }
 }
 
+function migrateAirportMetrics(data) {
+  if (!Array.isArray(data?.days)) return data;
+  for (const migration of AIRPORT_METRIC_MIGRATIONS) {
+    const day = data.days[migration.dayIndex];
+    if (!day) continue;
+    for (const [key, values] of Object.entries(migration.values)) {
+      if (day[key]?.value === values.legacy) day[key].value = values.current;
+    }
+  }
+  return data;
+}
+
 function synchronizeJourney(data) {
   if (!data || typeof data !== 'object') return data;
+  migrateAirportMetrics(data);
   if (data.card && data.hero) {
     data.hero.kicker = data.card.kicker;
     data.hero.title = data.card.title;
@@ -189,6 +231,7 @@ function normalizeEmail(value) {
 
 module.exports = {
   cmsError,
+  migrateAirportMetrics,
   normalizeEmail,
   stripInternal,
   synchronizeJourney,

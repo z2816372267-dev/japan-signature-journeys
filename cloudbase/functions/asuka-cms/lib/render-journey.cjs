@@ -96,8 +96,23 @@ function renderHighlights(data) {
         </section>`;
 }
 
+function metricLines(value) {
+  return String(value ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function renderMetricRoute(line) {
+  const separator = line.indexOf('：');
+  if (separator < 1) return `<span class="metric-route">${escapeHtml(line)}</span>`;
+  return `<span class="metric-route"><span class="metric-route-name">${escapeHtml(line.slice(0, separator))}</span><b class="metric-route-value">${escapeHtml(line.slice(separator + 1))}</b></span>`;
+}
+
 function renderMetric(label, prefix, item) {
-  return `<div><small>${escapeHtml(label)}</small><strong>${escapeHtml(prefix)}：${escapeHtml(item.value)}${item.note ? `<br>${escapeHtml(item.note)}` : ''}</strong></div>`;
+  const lines = metricLines(item.value);
+  const note = item.note ? `<span class="metric-note">${textWithBreaks(item.note)}</span>` : '';
+  if (lines.length > 1) {
+    return `<div class="metric-card metric-card--routes"><small>${escapeHtml(label)}</small><strong>${escapeHtml(prefix)}</strong><span class="metric-routes">${lines.map(renderMetricRoute).join('')}</span>${note}</div>`;
+  }
+  return `<div class="metric-card"><small>${escapeHtml(label)}</small><strong>${escapeHtml(prefix)}：${escapeHtml(lines[0] || '')}</strong>${note}</div>`;
 }
 
 function renderDay(day, index) {
