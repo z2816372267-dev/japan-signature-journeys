@@ -24,12 +24,26 @@ test('静态生成结果幂等并保留三个CMS区块', () => {
   assert.equal((once.match(/ASUKA_CMS:KANTO_INQUIRY:START/g) || []).length, 1);
 });
 
-test('官网使用行车里程与预计驾驶时间，并区分羽田和成田', () => {
+test('官网逐日使用后台当前的行车里程与预计驾驶时间', () => {
   const rendered = renderSite(html, data);
-  assert.match(rendered, /行车里程：羽田约20—25公里｜成田约65—75公里/);
-  assert.match(rendered, /预计驾驶时间：羽田约30—50分钟｜成田约60—90分钟/);
+  for (const day of data.days) {
+    const distance = `行车里程：${day.distance.value}${day.distance.note ? `<br>${day.distance.note}` : ''}`;
+    const duration = `预计驾驶时间：${day.duration.value}${day.duration.note ? `<br>${day.duration.note}` : ''}`;
+    assert.ok(rendered.includes(distance));
+    assert.ok(rendered.includes(duration));
+  }
   assert.doesNotMatch(rendered, /参考车程：/);
   assert.doesNotMatch(rendered, /预计耗时：/);
+});
+
+test('官网行程数据卡与后台预览保持两列并在手机端切换单列', () => {
+  const rendered = renderSite(html, data);
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  assert.match(adminStyles, /\.preview-metrics\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(rendered, /v27: match the CMS preview's readable two-column journey data cards/);
+  assert.match(rendered, /\.itinerary \.day-metrics\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:10px/);
+  assert.match(rendered, /border-radius:7px;background:#e9e3d9/);
+  assert.match(rendered, /@media\(max-width:540px\)\{\.itinerary \.day-metrics\{grid-template-columns:1fr\}/);
 });
 
 test('用户输入会在静态生成时转义', () => {
