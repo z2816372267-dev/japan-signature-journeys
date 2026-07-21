@@ -1,0 +1,19 @@
+{
+  "name": "asuka-travel-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "render": "node scripts/render-site.cjs",
+    "check:content": "node scripts/check-content.cjs",
+    "build:admin": "vite build --config vite.config.mjs",
+    "build": "npm run check:content && npm run render && npm run build:admin",
+    "dev:admin": "vite --config vite.config.mjs",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "@cloudbase/js-sdk": "2.27.3"
+  },
+  "devDependencies": {
+    "vite": "5.4.21"
+  }
+}

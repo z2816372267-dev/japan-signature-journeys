@@ -1,0 +1,16 @@
+{
+  "version": "2.0",
+  "envId": "asuka-travel-admin-d6cef3d2ad7da",
+  "region": "ap-shanghai",
+  "functionRoot": "./cloudbase/functions",
+  "functions": [
+    {
+      "name": "asuka-cms",
+      "timeout": 60,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "installDependency": true,
+      "handler": "index.main"
+    }
+  ]
+}

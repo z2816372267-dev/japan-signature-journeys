@@ -1,0 +1,69 @@
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
+
+const root = path.resolve(__dirname, '..');
+const indexPath = path.join(root, 'index.html');
+const contentPath = path.join(root, 'content', 'journeys', 'kanto-6d.json');
+const errors = [];
+
+function required(value, label, max = 1000) {
+  if (typeof value !== 'string' || !value.trim()) errors.push(`${label} 不能为空`);
+  if (typeof value === 'string' && value.length > max) errors.push(`${label} 超过 ${max} 字`);
+}
+
+function checkImage(image, label) {
+  if (!image) return;
+  for (const key of ['webp480', 'webp960', 'webp1600', 'fallback', 'alt']) {
+    required(image[key], `${label}.${key}`, key === 'alt' ? 120 : 240);
+  }
+  for (const key of ['webp480', 'webp960', 'webp1600', 'fallback']) {
+    if (typeof image[key] === 'string' && !image[key].includes('/cms-')) {
+      const asset = path.join(root, image[key]);
+      if (!fs.existsSync(asset)) errors.push(`${label}.${key} 指向的文件不存在：${image[key]}`);
+    }
+  }
+}
+
+const data = JSON.parse(fs.readFileSync(contentPath, 'utf8'));
+if (data.schemaVersion !== 1) errors.push('schemaVersion 必须为 1');
+required(data.id, 'id', 64);
+required(data.productCode, 'productCode', 32);
+required(data.card?.title, 'card.title', 80);
+required(data.hero?.copy, 'hero.copy', 400);
+checkImage(data.hero?.image, 'hero.image');
+
+if (!Array.isArray(data.days) || data.days.length !== 6) {
+  errors.push('关东行程必须包含 6 天');
+} else {
+  data.days.forEach((day, index) => {
+    const label = `days[${index}]`;
+    required(day.title, `${label}.title`, 80);
+    required(day.route, `${label}.route`, 120);
+    required(day.story, `${label}.story`, 1200);
+    required(day.distance?.value, `${label}.distance.value`, 120);
+    required(day.duration?.value, `${label}.duration.value`, 120);
+    required(day.hotel, `${label}.hotel`, 300);
+    checkImage(day.image, `${label}.image`);
+  });
+}
+
+for (const [index, item] of (data.highlights?.items || []).entries()) {
+  required(item.title, `highlights.items[${index}].title`, 80);
+  checkImage(item.image, `highlights.items[${index}].image`);
+}
+
+try {
+  renderSite(fs.readFileSync(indexPath, 'utf8'), data);
+} catch (error) {
+  errors.push(`静态生成失败：${error.message}`);
+}
+
+if (errors.length) {
+  process.stderr.write(`内容检查失败：\n- ${errors.join('\n- ')}\n`);
+  process.exit(1);
+}
+
+process.stdout.write('内容结构、图片路径与静态生成检查通过。\n');

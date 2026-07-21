@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "id": "kanto-6d",
+  "productCode": "AS-KANTO-06",
+  "regionId": "kanto",
+  "card": {
+    "kicker": "ASUKA SIGNATURE JOURNEY · KANTO 01",
+    "title": "富士箱根·伊豆镰仓\n关东山海6日",
+    "summary": "高尾山、富士河口湖、箱根、伊豆与镰仓一线串联，在城市停留、山湖温泉与海岸散策之间保持舒展节奏。",
+    "meta": ["6日5晚", "自然·艺术·温泉", "8人小团"]
+  },
+  "hero": {
+    "breadcrumb": ["日本心旅行", "关东地区", "6日5晚"],
+    "kicker": "ASUKA SIGNATURE JOURNEY · KANTO 01",
+    "title": "富士箱根·伊豆镰仓\n关东山海6日",
+    "copy": "从高尾山的林间与合掌屋炭火香气启程，循着富士湖畔、箱根神社与伊豆海岸一路向东，在江之电与湘南海风里，重新看见关东的丰盛层次。",
+    "tags": ["关东地区", "6日5晚", "自然·艺术·温泉", "8人小团"],
+    "status": "第一版行程 · 团期与价格待公布",
+    "image": {
+      "webp480": "images/responsive/oishi-park-fuji-v22-480.webp",
+      "webp960": "images/responsive/oishi-park-fuji-v22-960.webp",
+      "webp1600": "images/responsive/oishi-park-fuji-v22-1600.webp",
+      "fallback": "images/responsive/oishi-park-fuji-v22-960.jpg",
+      "width": 2200,
+      "height": 1467,
+      "alt": "河口湖大石公园与富士山实景"
+    }
+  },
+  "overview": {
+    "title": "从都市出发，走向山与海",
+    "copy": "以东京为起点与终点，连接高尾山、富士河口湖、箱根、伊豆与镰仓。两晚东京城市停留与两段山海温泉旅宿相互穿插，既保留关东经典，也避开传统大团的匆忙感。",
+    "facts": [
+      {"label": "DURATION", "value": "6日5晚"},
+      {"label": "REGION", "value": "东京·富士·箱根·伊豆·镰仓"},
+      {"label": "STYLE", "value": "自然·艺术·温泉·铁道"},
+      {"label": "PACE", "value": "张弛有度｜纵情山海"}
+    ],
+    "route": "国内 → 东京 → 高尾山 → 河口湖 → 箱根 → 伊豆 → 镰仓 → 东京 → 国内"
+  },
+  "map": {
+    "title": "六日动线，一目了然",
+    "copy": "从东京进入高尾山与富士湖区，再循箱根、伊豆半岛与湘南海岸返回东京。真实道路走向让城市、山地、湖泊与海岸之间的移动关系更清楚。",
+    "desktop": "images/maps/kanto-route-map-v24.svg",
+    "mobile": "images/maps/kanto-route-map-mobile-v24.svg",
+    "alt": "关东山海6日行程地图：东京、高尾山、河口湖、箱根、伊豆城崎海岸、镰仓并返回东京",
+    "caption": "地图按实际经纬度与公路走向绘制；最终用车路线可能因酒店位置、实时交通及车辆通行条件调整。",
+    "days": [
+      {"number": "01", "title": "抵达东京 · 从容安顿", "route": "国内 → 东京｜专车接机"},
+      {"number": "02", "title": "高尾山林 · 富士湖畔", "route": "东京 → 高尾山 → 河口湖"},
+      {"number": "03", "title": "箱根信仰 · 伊豆海岸", "route": "河口湖 → 箱根 → 伊豆"},
+      {"number": "04", "title": "江之电缓行 · 湘南海风", "route": "伊豆 → 镰仓 → 东京"},
+      {"number": "05", "title": "东京自由日", "route": "东京｜全天自由活动"},
+      {"number": "06", "title": "东京送机 · 温暖返程", "route": "东京 → 机场 → 国内"}
+    ]
+  },
+  "highlights": {
+    "title": "四种关东，编进同一段旅程",
+    "copy": "不是简单罗列景点，而是用山林、艺术、温泉与海岸，构成从东京出发后逐渐舒展开来的旅行节奏。",
+    "items": [
+      {
+        "eyebrow": "01 · FOREST & TASTE",
+        "title": "高尾山林与合掌屋炭火",
+        "image": {
+          "webp480": "images/responsive/mount-takao-v22-480.webp",
+          "webp960": "images/responsive/mount-takao-v22-960.webp",
+          "webp1600": "images/responsive/mount-takao-v22-1600.webp",
+          "fallback": "images/responsive/mount-takao-v22-960.jpg",
+          "width": 1600,
+          "height": 1540,
+          "alt": "高尾山秋日山林与Echo Lift实景"
+        }
+      },
+      {
+        "eyebrow": "02 · FUJI & ART",
+        "title": "富士湖畔与染织艺术",
+        "image": {
+          "webp480": "images/responsive/oishi-park-fuji-v22-480.webp",
+          "webp960": "images/responsive/oishi-park-fuji-v22-960.webp",
+          "webp1600": "images/responsive/oishi-park-fuji-v22-1600.webp",
+          "fallback": "images/responsive/oishi-park-fuji-v22-960.jpg",
+          "width": 2200,
+          "height": 1467,
+          "alt": "河口湖大石公园与富士山实景"
+        }
+      },
+      {
+        "eyebrow": "03 · ONSEN & COAST",
+        "title": "箱根信仰与伊豆海岸",
+        "image": {
+          "webp480": "images/responsive/hakone-shrine-v22-480.webp",
+          "webp960": "images/responsive/hakone-shrine-v22-960.webp",
+          "webp1600": "images/responsive/hakone-shrine-v22-1600.webp",
+          "fallback": "images/responsive/hakone-shrine-v22-960.jpg",
+          "width": 1600,
+          "height": 1200,
+          "alt": "芦之湖与箱根神社水上鸟居实景"
+        }
+      },
+      {
+        "eyebrow": "04 · RAIL & TOWN",
+        "title": "江之电、湘南与镰仓街町",
+        "image": {
+          "webp480": "images/responsive/enoden-kamakura-v22-480.webp",
+          "webp960": "images/responsive/enoden-kamakura-v22-960.webp",
+          "webp1600": "images/responsive/enoden-kamakura-v22-1600.webp",
+          "fallback": "images/responsive/enoden-kamakura-v22-960.jpg",
+          "width": 1600,
+          "height": 1271,
+          "alt": "镰仓高校前附近江之电500形实景"
+        }
+      }
+    ]
+  },
+  "days": [
+    {
+      "number": "01",
+      "title": "抵达东京·从容安顿",
+      "route": "国内 → 东京｜接机·酒店入住·自由活动",
+      "stops": ["东京接机", "专车送往酒店", "自由活动"],
+      "story": "抵达东京后，由专车接机前往酒店办理入住。今日不安排固定景点，让不同航班抵达的客人都能从容安顿；若时间合适，可自行探索酒店周边，慢慢进入东京的城市节奏。",
+      "image": {
+        "webp480": "images/responsive/tokyo-odaiba-v22-480.webp",
+        "webp960": "images/responsive/tokyo-odaiba-v22-960.webp",
+        "webp1600": "images/responsive/tokyo-odaiba-v22-1600.webp",
+        "fallback": "images/responsive/tokyo-odaiba-v22-960.jpg",
+        "width": 1600,
+        "height": 1204,
+        "alt": "东京台场与彩虹大桥夜景实景"
+      },
+      "distance": {"value": "羽田约20—25公里｜成田约65—75公里", "note": "按抵达机场及东京酒店位置核算"},
+      "duration": {"value": "羽田约30—50分钟｜成田约60—90分钟", "note": "为正常路况下纯驾驶时间"},
+      "activity": {"value": "低", "note": "以接机与休息为主"},
+      "comfort": {"value": "★★★★★", "note": "不安排赶场景点"},
+      "meals": {"breakfast": "敬请自理", "lunch": "敬请自理", "dinner": "敬请自理"},
+      "hotel": "东京台场日航／东京巨蛋／东京潮见王子",
+      "footnote": ""
+    },
+    {
+      "number": "02",
+      "title": "高尾山林·富士湖畔艺术",
+      "route": "东京 → 高尾山 → 河口湖",
+      "stops": ["高尾山缆车", "高尾山散策", "うかい鳥山", "久保田一竹美术馆", "大石公园"],
+      "story": "早餐后离开东京，前往《米其林绿色指南·日本》三星推荐的高尾山。搭乘缆车轻松上山，在杉林与山径之间舒展身心。中午走进合掌造庭园餐厅，品尝特色炉端炭火料理；下午转往河口湖，在久保田一竹美术馆欣赏染织艺术与建筑庭园，随后于大石公园沿湖散策，静候富士山在不同光线下显现。",
+      "image": {
+        "webp480": "images/responsive/oishi-park-fuji-v22-480.webp",
+        "webp960": "images/responsive/oishi-park-fuji-v22-960.webp",
+        "webp1600": "images/responsive/oishi-park-fuji-v22-1600.webp",
+        "fallback": "images/responsive/oishi-park-fuji-v22-960.jpg",
+        "width": 2200,
+        "height": 1467,
+        "alt": "河口湖大石公园与富士山实景"
+      },
+      "distance": {"value": "约130—150公里", "note": "含东京、高尾山及河口湖间移动"},
+      "duration": {"value": "约2.5—3.5小时", "note": "不含景点游览、用餐与休息时间"},
+      "activity": {"value": "中等", "note": "含高尾山与湖畔步行"},
+      "comfort": {"value": "★★★★☆", "note": "自然、餐食与艺术均衡"},
+      "meals": {"breakfast": "酒店内", "lunch": "合掌屋特色炭火烧\n餐标6,800日元／人", "dinner": "待确认"},
+      "hotel": "富士赛道酒店／富士の宿·大池酒店／拉维斯塔富士河口湖",
+      "footnote": "旅行提示：大石公园可欣赏富士山湖畔景观；“逆富士”受天气、风力与湖面状况影响，为机会性自然景观，不作保证。久保田一竹美术馆休馆日需按实际团期复核。"
+    },
+    {
+      "number": "03",
+      "title": "箱根信仰·走向伊豆海岸",
+      "route": "富士 → 箱根 → 伊豆",
+      "stops": ["芦之湖游船", "箱根神社", "伊豆仙人掌动物公园", "城崎海岸"],
+      "story": "早餐后前往箱根，搭乘芦之湖游船穿行于山湖之间，并由湖畔步入杉木参道与箱根神社。午后继续向伊豆半岛行进，在伊豆仙人掌动物公园近距离观察水豚与多样动物；傍晚抵达城崎海岸，在火山熔岩塑造的峭壁与海风中结束今日旅程。",
+      "image": {
+        "webp480": "images/responsive/jogasaki-coast-v22-480.webp",
+        "webp960": "images/responsive/jogasaki-coast-v22-960.webp",
+        "webp1600": "images/responsive/jogasaki-coast-v22-1600.webp",
+        "fallback": "images/responsive/jogasaki-coast-v22-960.jpg",
+        "width": 1600,
+        "height": 1200,
+        "alt": "伊豆城崎海岸实景"
+      },
+      "distance": {"value": "约125—145公里", "note": "含富士湖区、箱根与伊豆高原间移动"},
+      "duration": {"value": "约3—4小时", "note": "不含游船、景点游览与休息时间"},
+      "activity": {"value": "中高", "note": "游船、神社与海岸步行"},
+      "comfort": {"value": "★★★★☆", "note": "专车连接山湖与海岸"},
+      "meals": {"breakfast": "酒店内", "lunch": "途中安排·待确认", "dinner": "酒店内·待确认"},
+      "hotel": "伊豆高原·龟之井酒店",
+      "footnote": "执行重点：正式团期将按照芦之湖游船班次、季节日落时间及酒店晚餐时间倒排行程；必要时调整游览先后，保证不因赶路降低体验。"
+    },
+    {
+      "number": "04",
+      "title": "江之电缓行·湘南海风",
+      "route": "伊豆 → 镰仓 → 东京",
+      "stops": ["江之电体验", "镰仓高校站前", "湘南海岸", "小町通", "返回东京"],
+      "story": "早餐后离开伊豆，沿海岸方向前往镰仓。搭乘江之电穿过住宅街与海岸线，在镰仓高校站前感受熟悉的青春场景；随后沿湘南海岸散策，再到小町通自由寻味与选购地方小物。傍晚返回东京，重新进入城市生活。",
+      "image": {
+        "webp480": "images/responsive/enoden-kamakura-v22-480.webp",
+        "webp960": "images/responsive/enoden-kamakura-v22-960.webp",
+        "webp1600": "images/responsive/enoden-kamakura-v22-1600.webp",
+        "fallback": "images/responsive/enoden-kamakura-v22-960.jpg",
+        "width": 1600,
+        "height": 1271,
+        "alt": "镰仓高校前附近江之电500形实景"
+      },
+      "distance": {"value": "约155—175公里", "note": "含伊豆、镰仓及东京间移动"},
+      "duration": {"value": "约4—5小时", "note": "不含江之电、景点游览与休息时间"},
+      "activity": {"value": "中等", "note": "含电车与街町步行"},
+      "comfort": {"value": "★★★★☆", "note": "车辆与江之电分段衔接"},
+      "meals": {"breakfast": "酒店内", "lunch": "镰仓自由品味·待确认", "dinner": "敬请自理"},
+      "hotel": "东京台场日航／东京巨蛋／东京潮见王子",
+      "footnote": "江之电具体搭乘区间将在团期确认时公布。镰仓高校站前为公共道路及日常通行区域，行程将避开长时间停留，并遵守当地拍摄与交通秩序。"
+    },
+    {
+      "number": "05",
+      "title": "东京自由日·把选择交还给你",
+      "route": "东京｜全天自由活动",
+      "stops": ["全天自由活动", "购物", "美食", "城市探索"],
+      "story": "全天自由活动。可以走入银座、表参道与丸之内感受都市美学，也可以选择涩谷、新宿或主题乐园；飞鸟旅行将在出发前提供分区建议，让不同年龄与兴趣的客人都能找到适合自己的东京。",
+      "image": {
+        "webp480": "images/responsive/tokyo-shibuya-night-v22-480.webp",
+        "webp960": "images/responsive/tokyo-shibuya-night-v22-960.webp",
+        "webp1600": "images/responsive/tokyo-shibuya-night-v22-1600.webp",
+        "fallback": "images/responsive/tokyo-shibuya-night-v22-960.jpg",
+        "width": 1600,
+        "height": 1200,
+        "alt": "东京涩谷夜景实景"
+      },
+      "distance": {"value": "—（无统一用车）", "note": "按个人计划自由安排"},
+      "duration": {"value": "—（全天自由安排）", "note": "不设统一集合与驾驶时段"},
+      "activity": {"value": "自由选择", "note": "可轻松亦可深度探索"},
+      "comfort": {"value": "★★★★★", "note": "完整保留个人时间"},
+      "meals": {"breakfast": "酒店内", "lunch": "敬请自理", "dinner": "敬请自理"},
+      "hotel": "东京台场日航／东京巨蛋／东京潮见王子",
+      "footnote": ""
+    },
+    {
+      "number": "06",
+      "title": "东京送机·带着山海余韵返程",
+      "route": "东京 → 机场 → 国内",
+      "stops": ["酒店退房", "专车送机", "返回国内"],
+      "story": "根据返程航班时间办理退房，由专车送往机场。六天的东京、富士、箱根、伊豆与镰仓之旅在此告一段落，带着山林、湖泊、温泉与湘南海风的记忆返回温暖的家。",
+      "image": null,
+      "distance": {"value": "羽田约20—25公里｜成田约65—75公里", "note": "按东京酒店及返程机场位置核算"},
+      "duration": {"value": "羽田约30—50分钟｜成田约60—90分钟", "note": "为正常路况下纯驾驶时间"},
+      "activity": {"value": "低", "note": "以退房与送机为主"},
+      "comfort": {"value": "★★★★★", "note": "预留充足机场时间"},
+      "meals": {"breakfast": "酒店内", "lunch": "依航班安排", "dinner": "依航班安排"},
+      "hotel": "温暖的家",
+      "footnote": ""
+    }
+  ],
+  "stays": {
+    "title": "住宿归属，清楚而不含糊",
+    "copy": "每一晚均按对应区域清晰标注，并区分城市酒店、河口湖温泉旅宿与御殿场设计酒店。最终入住以团期确认书为准，让住宿选择与次日动线相互匹配。",
+    "groups": [
+      {"eyebrow": "TOKYO · DAY 1 / 4 / 5", "title": "东京城市酒店", "hotels": ["东京台场日航大酒店", "东京巨蛋大酒店", "东京潮见王子大酒店"], "copy": "根据客群与航班选择海湾度假感、中央交通便利度或年轻设计体验。"},
+      {"eyebrow": "FUJI · DAY 2", "title": "富士山麓甄选", "hotels": ["富士赛道酒店——凯悦臻选品牌", "富士の宿·大池酒店", "拉维斯塔富士河口湖度假村"], "copy": "富士赛道酒店更利于次日进入箱根；河口湖两家则更强调湖畔与清晨富士景观。"},
+      {"eyebrow": "IZU · DAY 3", "title": "伊豆海景温泉", "hotels": ["伊豆高原·龟之井酒店"], "copy": "以相模湾海景、温泉和伊豆高原度假氛围承接当日山海行程。"}
+    ]
+  },
+  "notes": {
+    "title": "第一版行程说明",
+    "copy": "本页已完成路线、每日内容与住宿归属的第一轮整理；价格、航班、餐食及具体团期将在资源确认后补齐。",
+    "items": [
+      {"title": "自然景观", "copy": "富士山及逆富士受天气与能见度影响；网页只陈述“有机会欣赏”，不作保证性承诺。"},
+      {"title": "营业与班次", "copy": "高尾山缆车、久保田一竹美术馆、芦之湖游船及各景点开放情况，按实际出发日期复核。"},
+      {"title": "酒店安排", "copy": "酒店将按照团期资源及路线方向确认；如需调整，以不降低整体住宿等级和旅行体验为原则。"},
+      {"title": "行程顺序", "copy": "因天气、交通、日落时间或当地运营状况，可能调整游览先后，但不会擅自删减核心体验。"}
+    ],
+    "photoDisclaimer": "图片说明：本产品页均使用与行程对应的真实地点摄影；图片已下载至网站本地目录并转换为高清网页格式。"
+  },
+  "booking": {
+    "title": "富士箱根·伊豆镰仓\n关东山海6日",
+    "productGroup": "日本心旅行·关东地区",
+    "currentStatus": "第一版·内容确认中",
+    "departure": "待公布",
+    "price": "待公布",
+    "travelStyle": "8人小团"
+  }
+}
