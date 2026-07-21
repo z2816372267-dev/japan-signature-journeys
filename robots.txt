@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://z2816372267-dev.github.io/japan-signature-journeys/sitemap.xml

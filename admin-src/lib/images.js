@@ -1,5 +1,12 @@
 const MAX_INPUT_BYTES = 20 * 1024 * 1024;
+const MAX_OUTPUT_BYTES = 3 * 1024 * 1024;
+const MAX_VARIANT_BYTES = 1400 * 1024;
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const QUALITY_PROFILES = [
+  [0.76, 0.78, 0.8, 0.82],
+  [0.68, 0.71, 0.74, 0.76],
+  [0.6, 0.64, 0.68, 0.7],
+];
 
 function imageError(message) {
   const error = new Error(message);
@@ -82,12 +89,23 @@ export async function prepareResponsiveImage(file) {
   if (sourceWidth < 720 || sourceHeight < 480) throw imageError('图片分辨率过低，建议至少720×480像素');
 
   try {
-    const outputs = await Promise.all([
-      makeVariant(source, sourceWidth, sourceHeight, 480, 'image/webp', 0.78),
-      makeVariant(source, sourceWidth, sourceHeight, 960, 'image/webp', 0.8),
-      makeVariant(source, sourceWidth, sourceHeight, 1600, 'image/webp', 0.82),
-      makeVariant(source, sourceWidth, sourceHeight, 960, 'image/jpeg', 0.84),
-    ]);
+    let outputs = null;
+    for (const quality of QUALITY_PROFILES) {
+      const candidate = await Promise.all([
+        makeVariant(source, sourceWidth, sourceHeight, 480, 'image/webp', quality[0]),
+        makeVariant(source, sourceWidth, sourceHeight, 960, 'image/webp', quality[1]),
+        makeVariant(source, sourceWidth, sourceHeight, 1600, 'image/webp', quality[2]),
+        makeVariant(source, sourceWidth, sourceHeight, 960, 'image/jpeg', quality[3]),
+      ]);
+      const total = candidate.reduce((sum, output) => sum + output.blob.size, 0);
+      if (total <= MAX_OUTPUT_BYTES && candidate.every((output) => output.blob.size <= MAX_VARIANT_BYTES)) {
+        outputs = candidate;
+        break;
+      }
+    }
+    if (!outputs) {
+      throw imageError('图片细节过于复杂，压缩后仍超过安全上传大小。请先裁剪图片或另存为较小的 JPG 后重试');
+    }
     const keys = ['webp480', 'webp960', 'webp1600', 'fallback'];
     const variants = await Promise.all(outputs.map(async (output, index) => ({
       key: keys[index],

@@ -24,6 +24,8 @@ const ERROR_MESSAGES = Object.freeze({
   login_method_disabled: 'CloudBase 尚未开启邮箱验证码登录。',
   registration_not_supported: 'CloudBase 当前未允许新用户注册，请检查邮箱登录配置。',
   permission_denied: '当前请求被 CloudBase 拒绝，请检查安全域名和云函数权限。',
+  functions_time_limit_exceeded: '云函数实际超时时间仍然过短。请在 CloudBase 将 asuka-cms 的超时时间设为60秒并重新部署后再试。',
+  function_time_limit_exceeded: '云函数实际超时时间仍然过短。请在 CloudBase 将 asuka-cms 的超时时间设为60秒并重新部署后再试。',
 });
 
 function serviceError(error, fallback) {
@@ -34,7 +36,10 @@ function serviceError(error, fallback) {
   const normalizedCode = code.toLowerCase();
   const detail = [error?.message, error?.error_description, error?.msg, error?.error?.message, nestedError, directError]
     .find((value) => typeof value === 'string' && value.trim());
-  const message = ERROR_MESSAGES[normalizedCode] || detail || `${fallback}（${code}）`;
+  const embeddedTimeout = /FUNCTIONS?_TIME_LIMIT_EXCEEDED/i.test(detail || '')
+    ? ERROR_MESSAGES.functions_time_limit_exceeded
+    : '';
+  const message = ERROR_MESSAGES[normalizedCode] || embeddedTimeout || detail || `${fallback}（${code}）`;
   return new CmsApiError(code, message);
 }
 

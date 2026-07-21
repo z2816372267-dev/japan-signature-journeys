@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
+const { validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
 
 const root = path.resolve(__dirname, '..');
 const indexPath = path.join(root, 'index.html');
@@ -28,6 +29,11 @@ function checkImage(image, label) {
 }
 
 const data = JSON.parse(fs.readFileSync(contentPath, 'utf8'));
+try {
+  validateJourney(data);
+} catch (error) {
+  errors.push(`后台发布校验失败：${error.message}`);
+}
 if (data.schemaVersion !== 1) errors.push('schemaVersion 必须为 1');
 required(data.id, 'id', 64);
 required(data.productCode, 'productCode', 32);

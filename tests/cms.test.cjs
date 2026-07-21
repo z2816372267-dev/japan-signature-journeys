@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
-const { stripInternal, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
+const { stripInternal, synchronizeJourney, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
 
 const root = path.resolve(__dirname, '..');
 const data = JSON.parse(fs.readFileSync(path.join(root, 'content/journeys/kanto-6d.json'), 'utf8'));
@@ -44,6 +44,27 @@ test('官网行程数据卡与后台预览保持两列并在手机端切换单�
   assert.match(rendered, /\.itinerary \.day-metrics\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:10px/);
   assert.match(rendered, /border-radius:7px;background:#e9e3d9/);
   assert.match(rendered, /@media\(max-width:540px\)\{\.itinerary \.day-metrics\{grid-template-columns:1fr\}/);
+});
+
+test('后台右侧内容跟随六个左侧栏目切换', () => {
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  for (const renderer of [
+    'renderOverviewPreview',
+    'renderDaysPreview',
+    'renderHighlightsPreview',
+    'renderStaysPreview',
+    'renderPublishPreview',
+    'renderStaffPreview',
+  ]) {
+    assert.match(adminSource, new RegExp(`function ${renderer}\\(`));
+  }
+  assert.match(adminSource, /const previewRenderers = \{[\s\S]*?overview:[\s\S]*?days:[\s\S]*?highlights:[\s\S]*?stays:[\s\S]*?publish:[\s\S]*?staff:/);
+  assert.match(adminSource, /previewRenderers\[state\.tab\]\(state\.content\)/);
+  assert.match(adminSource, /elements\.previewTitle\.textContent = title/);
+  assert.match(adminSource, /async function selectTab\([\s\S]*?renderEditor\(\);[\s\S]*?renderPreview\(\);/);
+  assert.match(adminStyles, /\.journey-preview\.mobile \.preview-facts,[\s\S]*?\.journey-preview\.mobile \.preview-check-list\s*\{\s*grid-template-columns:\s*1fr/);
+  assert.match(adminStyles, /\.journey-preview\.mobile \.preview-metrics\s*\{\s*grid-template-columns:\s*1fr/);
 });
 
 test('用户输入会在静态生成时转义', () => {
@@ -85,4 +106,101 @@ test('后台邮箱登录统一使用 CloudBase 无密码登录流程', () => {
   assert.doesNotMatch(apiSource, /auth\.signUp\(/);
   assert.doesNotMatch(apiSource, /auth\.verify\(/);
   assert.match(apiSource, /invalid_verification_code/);
+});
+
+test('产品标题与地图逐日路线只维护一份并自动同步', () => {
+  const draft = structuredClone(data);
+  draft.card.title = '统一后的产品标题';
+  draft.days[2].route = '富士 → 箱根 → 伊豆';
+  draft.days[2].title = '同步后的第三天';
+  synchronizeJourney(draft);
+  assert.equal(draft.hero.title, draft.card.title);
+  assert.equal(draft.booking.title, draft.card.title);
+  assert.equal(draft.hero.kicker, draft.card.kicker);
+  assert.deepEqual(draft.map.days[2], {
+    number: draft.days[2].number,
+    title: draft.days[2].title,
+    route: draft.days[2].route,
+  });
+});
+
+test('接送机日按羽田与成田分别显示车程和驾驶时间', () => {
+  for (const day of [data.days[0], data.days[5]]) {
+    assert.match(day.distance.value, /羽田/);
+    assert.match(day.distance.value, /成田/);
+    assert.match(day.duration.value, /羽田/);
+    assert.match(day.duration.value, /成田/);
+  }
+});
+
+test('同一个后台在手机端保留保存入口且官网提供手机菜单', () => {
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  const adminHtml = fs.readFileSync(path.join(root, 'admin-src', 'index.html'), 'utf8');
+  assert.match(adminHtml, /id="saveButton"/);
+  assert.match(adminHtml, /aria-controls="cmsSidebar" aria-expanded="false"/);
+  assert.doesNotMatch(adminStyles, /\.cms-topbar p,\s*\.profile-chip,\s*#saveButton/);
+  assert.match(adminStyles, /\.topbar-actions \.secondary,[\s\S]*?\.topbar-actions \.primary/);
+  assert.match(html, /id="mobileNavToggle"/);
+  assert.match(html, /id="mobileNavPanel"/);
+  assert.match(html, /function openMobilePanel\(id\)/);
+});
+
+test('多人草稿与发布请求具有版本冲突和幂等保护', () => {
+  const source = fs.readFileSync(path.join(root, 'cloudbase', 'functions', 'asuka-cms', 'index.js'), 'utf8');
+  assert.match(source, /currentRevision !== expectedRevision/);
+  assert.match(source, /DRAFT_CONFLICT/);
+  assert.match(source, /publishJobId\(/);
+  assert.match(source, /PUBLISH_IN_PROGRESS/);
+  assert.match(source, /alreadyCurrent/);
+  assert.match(source, /markAssetsPublished\(/);
+});
+
+test('响应式图片请求控制在 CloudBase 事件上限以内', () => {
+  const browserSource = fs.readFileSync(path.join(root, 'admin-src', 'lib', 'images.js'), 'utf8');
+  const functionSource = fs.readFileSync(path.join(root, 'cloudbase', 'functions', 'asuka-cms', 'index.js'), 'utf8');
+  assert.match(browserSource, /MAX_OUTPUT_BYTES = 3 \* 1024 \* 1024/);
+  assert.match(browserSource, /QUALITY_PROFILES/);
+  assert.match(functionSource, /total > 3 \* 1024 \* 1024/);
+  assert.match(functionSource, /Promise\.all\(Object\.entries\(specs\)/);
+});
+
+test('工作人员邀请会自动完成并支持权限管理', () => {
+  const source = fs.readFileSync(path.join(root, 'cloudbase', 'functions', 'asuka-cms', 'index.js'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  assert.match(source, /acceptedAt: now\(\)/);
+  assert.match(source, /revokeInvite:/);
+  assert.match(source, /LAST_ADMIN/);
+  assert.match(adminSource, /data-save-staff/);
+  assert.match(adminSource, /data-toggle-staff/);
+  assert.match(adminSource, /data-revoke-invite/);
+});
+
+test('部署配置要求云函数实际使用60秒超时', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(root, 'cloudbaserc.json'), 'utf8'));
+  const cms = config.functions.find((item) => item.name === 'asuka-cms');
+  assert.equal(cms.timeout, 60);
+  assert.equal(cms.runtime, 'Nodejs20.19');
+});
+
+test('发布校验覆盖地图、亮点与住宿等完整结构', () => {
+  const missingMap = structuredClone(data);
+  missingMap.map.caption = '';
+  assert.throws(() => validateJourney(missingMap), /行程地图注释/);
+
+  const missingHighlight = structuredClone(data);
+  missingHighlight.highlights.items.pop();
+  assert.throws(() => validateJourney(missingHighlight), /亮点区必须保留4项内容/);
+
+  const missingStay = structuredClone(data);
+  missingStay.stays.groups[0].hotels = [];
+  assert.throws(() => validateJourney(missingStay), /住宿组1酒店/);
+});
+
+test('官网包含基础搜索信息与站点地图入口', () => {
+  assert.match(html, /<meta name="description"/);
+  assert.match(html, /<link rel="canonical"/);
+  assert.match(html, /<meta property="og:image"/);
+  assert.ok(fs.existsSync(path.join(root, 'favicon.svg')));
+  assert.ok(fs.existsSync(path.join(root, 'robots.txt')));
+  assert.ok(fs.existsSync(path.join(root, 'sitemap.xml')));
 });

@@ -22,12 +22,16 @@ const state = {
   device: 'desktop',
   dirty: false,
   saving: false,
+  revision: 0,
+  draftInfo: null,
+  publishRequestId: null,
   verificationInfo: null,
   previewUrls: new Map(),
   history: [],
   staff: null,
   localSaveTimer: null,
   previewFrame: 0,
+  modalReturnFocus: null,
 };
 
 const elements = {
@@ -42,6 +46,9 @@ const elements = {
   cmsApp: document.querySelector('#cmsApp'),
   editorCanvas: document.querySelector('#editorCanvas'),
   journeyPreview: document.querySelector('#journeyPreview'),
+  previewStage: document.querySelector('#previewStage'),
+  previewEyebrow: document.querySelector('#previewEyebrow'),
+  previewTitle: document.querySelector('#previewTitle'),
   sectionTitle: document.querySelector('#sectionTitle'),
   sectionEyebrow: document.querySelector('#sectionEyebrow'),
   saveState: document.querySelector('#saveState'),
@@ -67,6 +74,15 @@ const TAB_COPY = {
   staff: ['TEAM ACCESS', '工作人员'],
 };
 
+const PREVIEW_COPY = {
+  overview: ['LIVE WEBSITE', '产品概览预览'],
+  days: ['LIVE WEBSITE', '每日行程预览'],
+  highlights: ['LIVE WEBSITE', '亮点与图片预览'],
+  stays: ['LIVE WEBSITE', '酒店与说明预览'],
+  publish: ['PUBLISH STATUS', '发布状态检查'],
+  staff: ['INTERNAL ACCESS', '工作人员状态'],
+};
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -78,6 +94,14 @@ function escapeHtml(value) {
 
 function withBreaks(value) {
   return escapeHtml(value).replaceAll('\n', '<br>');
+}
+
+function stripClientInternal(value) {
+  if (Array.isArray(value)) return value.map(stripClientInternal);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => !key.startsWith('_'))
+    .map(([key, item]) => [key, stripClientInternal(item)]));
 }
 
 function getPath(path) {
@@ -93,6 +117,23 @@ function setPath(path, value) {
     target = target[part];
   });
   target[parts[parts.length - 1]] = value;
+  synchronizeContent(path);
+}
+
+function synchronizeContent(changedPath = '') {
+  const content = state.content;
+  if (content.card && content.hero && (!changedPath || changedPath === 'card.title' || changedPath === 'card.kicker')) {
+    content.hero.title = content.card.title;
+    content.hero.kicker = content.card.kicker;
+    if (content.booking) content.booking.title = content.card.title;
+  }
+  if (Array.isArray(content.days) && content.map && (!changedPath || /^days\.\d+\.(number|title|route)$/.test(changedPath))) {
+    content.map.days = content.days.map((day) => ({
+      number: day.number,
+      title: day.title,
+      route: day.route,
+    }));
+  }
 }
 
 function imageUrl(path) {
@@ -110,9 +151,10 @@ function field(label, path, options = {}) {
   const full = options.full === false ? '' : ' full';
   const max = options.max || 300;
   const help = options.help || '';
+  const readonly = options.readonly ? ' readonly aria-readonly="true"' : '';
   const input = options.textarea
-    ? `<textarea data-path="${escapeHtml(path)}" data-max="${max}" data-size="${escapeHtml(options.size || 'short')}" maxlength="${max}">${escapeHtml(value)}</textarea>`
-    : `<input data-path="${escapeHtml(path)}" data-max="${max}" maxlength="${max}" value="${escapeHtml(value)}" type="${escapeHtml(options.type || 'text')}" />`;
+    ? `<textarea data-path="${escapeHtml(path)}" data-max="${max}" data-size="${escapeHtml(options.size || 'short')}" maxlength="${max}"${readonly}>${escapeHtml(value)}</textarea>`
+    : `<input data-path="${escapeHtml(path)}" data-max="${max}" maxlength="${max}" value="${escapeHtml(value)}" type="${escapeHtml(options.type || 'text')}"${readonly} />`;
   return `<div class="field${full}">
     <label>${escapeHtml(label)}</label>
     ${input}
@@ -160,6 +202,13 @@ function formCard(title, copy, body) {
   return `<section class="form-card"><header class="form-card-head"><div><h3>${escapeHtml(title)}</h3>${copy ? `<p>${escapeHtml(copy)}</p>` : ''}</div></header>${body}</section>`;
 }
 
+function overviewFactEditor(index) {
+  return `<div class="metric-editor"><small>OVERVIEW FACT ${index + 1}</small>
+    <input data-path="overview.facts.${index}.label" data-max="30" maxlength="30" value="${escapeHtml(state.content.overview.facts[index]?.label || '')}" aria-label="概览信息${index + 1}英文标签" />
+    <input data-path="overview.facts.${index}.value" data-max="120" maxlength="120" value="${escapeHtml(state.content.overview.facts[index]?.value || '')}" aria-label="概览信息${index + 1}内容" />
+  </div>`;
+}
+
 function renderOverviewEditor() {
   return `<div class="editor-section">
     ${demoBanner()}
@@ -170,9 +219,10 @@ function renderOverviewEditor() {
       ${field('产品摘要', 'card.summary', { max: 300, textarea: true })}
       ${arrayEditor('产品标签', 'card.meta', { max: 30, help: '建议保留3项，手机端排列更规整。' })}
     </div>`)}
-    ${formCard('详情页首屏', '首屏决定游客对产品的第一印象。', `<div class="form-grid">
-      ${field('首屏标题', 'hero.title', { max: 80, full: false, textarea: true })}
+    ${formCard('详情页首屏', '首屏决定游客对产品的第一印象；标题与英文眉题会自动跟随产品卡片，避免多个位置内容不一致。', `<div class="form-grid">
+      ${field('首屏标题（自动同步）', 'hero.title', { max: 80, full: false, textarea: true, readonly: true, help: '请在上方“产品标题”中修改。' })}
       ${field('行程状态', 'hero.status', { max: 80, full: false })}
+      ${arrayEditor('首屏路径', 'hero.breadcrumb', { max: 40, help: '显示在详情页标题上方。' })}
       ${field('首屏介绍', 'hero.copy', { max: 420, textarea: true, size: 'long' })}
       ${arrayEditor('首屏标签', 'hero.tags', { max: 30 })}
       ${imageUploader('首屏主图', 'hero.image', state.content.hero.image)}
@@ -181,8 +231,16 @@ function renderOverviewEditor() {
       ${field('概览标题', 'overview.title', { max: 80, full: false })}
       ${field('完整动线', 'overview.route', { max: 220, full: false })}
       ${field('概览说明', 'overview.copy', { max: 500, textarea: true, size: 'long' })}
+      <div class="metric-grid full">${state.content.overview.facts.map((_, index) => overviewFactEditor(index)).join('')}</div>
     </div>`)}
-    ${formCard('产品信息', '用于详情页右侧咨询卡片。', `<div class="form-grid">
+    ${formCard('行程地图', '地图图片保持已校准版本；这里维护地图标题和说明。逐日路线会自动跟随“每日行程”。', `<div class="form-grid">
+      ${field('地图标题', 'map.title', { max: 100, full: false })}
+      ${field('地图替代文字', 'map.alt', { max: 220, full: false })}
+      ${field('地图介绍', 'map.copy', { max: 700, textarea: true, size: 'long' })}
+      ${field('地图注释', 'map.caption', { max: 400, textarea: true })}
+    </div>`)}
+    ${formCard('产品信息', '用于详情页右侧咨询卡片；咨询卡标题自动跟随产品标题。', `<div class="form-grid">
+      ${field('产品归属', 'booking.productGroup', { max: 100, full: false })}
       ${field('当前状态', 'booking.currentStatus', { max: 60, full: false })}
       ${field('出发日期', 'booking.departure', { max: 80, full: false })}
       ${field('参考价格', 'booking.price', { max: 80, full: false })}
@@ -282,6 +340,7 @@ function renderPublishEditor() {
 function renderStaffEditor() {
   const staff = state.staff?.staff || [];
   const invites = state.staff?.invites || [];
+  const pendingInvites = invites.filter((invite) => invite.active);
   return `<div class="editor-section">
     ${demoBanner()}
     ${sectionIntro('TEAM ACCESS', '工作人员', '每位工作人员使用自己的邮箱登录。编辑可维护草稿和图片，管理员还可以发布官网及管理人员。')}
@@ -290,8 +349,8 @@ function renderStaffEditor() {
       <div><label for="staffRole">权限</label><select id="staffRole"><option value="editor">编辑</option><option value="admin">管理员</option></select></div>
       <button class="primary" type="submit">发送邀请</button>
     </form>`)}
-    ${formCard('已加入人员', '', `<div class="staff-list">${staff.length ? staff.map((person) => `<div class="staff-item"><div><strong>${escapeHtml(person.name || person.email)}</strong><span>${escapeHtml(person.email)} · ${person.active === false ? '已停用' : '正常'}</span></div><span class="role-badge">${person.role === 'admin' ? '管理员' : '编辑'}</span></div>`).join('') : '<p>暂无人员记录。首位管理员登录后会自动出现。</p>'}</div>`)}
-    ${formCard('待加入邮箱', '', `<div class="staff-list">${invites.length ? invites.filter((invite) => invite.active).map((invite) => `<div class="staff-item"><div><strong>${escapeHtml(invite.email)}</strong><span>等待首次登录 · ${formatDate(invite.createdAt)}</span></div><span class="role-badge">${invite.role === 'admin' ? '管理员' : '编辑'}</span></div>`).join('') : '<p>当前没有待加入邀请。</p>'}</div>`)}
+    ${formCard('已加入人员', '可以调整权限或停用离职账号；系统会确保至少保留一位管理员。', `<div class="staff-list">${staff.length ? staff.map((person) => `<div class="staff-item staff-item--managed"><div><strong>${escapeHtml(person.name || person.email)}</strong><span>${escapeHtml(person.email)} · ${person.active === false ? '已停用' : '正常'}${person.uid === state.actor?.uid ? ' · 当前账号' : ''}</span></div><div class="staff-actions"><select data-staff-role="${escapeHtml(person.uid)}" aria-label="${escapeHtml(person.email)}的权限"><option value="editor"${person.role === 'admin' ? '' : ' selected'}>编辑</option><option value="admin"${person.role === 'admin' ? ' selected' : ''}>管理员</option></select><button class="secondary" data-save-staff="${escapeHtml(person.uid)}" data-active="${person.active === false ? 'false' : 'true'}" type="button">保存权限</button><button class="staff-toggle" data-toggle-staff="${escapeHtml(person.uid)}" data-next-active="${person.active === false ? 'true' : 'false'}" data-role="${person.role === 'admin' ? 'admin' : 'editor'}" type="button"${person.uid === state.actor?.uid ? ' disabled title="不能停用当前账号"' : ''}>${person.active === false ? '重新启用' : '停用账号'}</button></div></div>`).join('') : '<p>暂无人员记录。首位管理员登录后会自动出现。</p>'}</div>`)}
+    ${formCard('待加入邮箱', '邀请在对方首次登录后会自动转为“已加入”，不再留在待处理列表。', `<div class="staff-list">${pendingInvites.length ? pendingInvites.map((invite) => `<div class="staff-item"><div><strong>${escapeHtml(invite.email)}</strong><span>等待首次登录 · ${formatDate(invite.createdAt)}</span></div><div class="staff-actions"><span class="role-badge">${invite.role === 'admin' ? '管理员' : '编辑'}</span><button class="staff-toggle" data-revoke-invite="${escapeHtml(invite.email)}" type="button">取消邀请</button></div></div>`).join('') : '<p>当前没有待加入邀请。</p>'}</div>`)}
   </div>`;
 }
 
@@ -368,10 +427,14 @@ function bindEditorEvents() {
 
   const staffForm = elements.editorCanvas.querySelector('#staffInviteForm');
   if (staffForm) staffForm.addEventListener('submit', inviteStaff);
+  elements.editorCanvas.querySelectorAll('[data-save-staff]').forEach((button) => button.addEventListener('click', () => saveStaffAccess(button)));
+  elements.editorCanvas.querySelectorAll('[data-toggle-staff]').forEach((button) => button.addEventListener('click', () => toggleStaffAccess(button)));
+  elements.editorCanvas.querySelectorAll('[data-revoke-invite]').forEach((button) => button.addEventListener('click', () => revokeStaffInvite(button)));
 }
 
 function markDirty() {
   state.dirty = true;
+  state.publishRequestId = null;
   updateSaveState();
   clearTimeout(state.localSaveTimer);
   state.localSaveTimer = setTimeout(saveLocalDraft, 450);
@@ -386,7 +449,12 @@ function updateSaveState(message) {
 
 function saveLocalDraft() {
   try {
-    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({ content: state.content, savedAt: new Date().toISOString() }));
+    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({
+      content: state.content,
+      savedAt: new Date().toISOString(),
+      revision: state.revision,
+      dirty: state.dirty,
+    }));
   } catch {
     // Local storage is an extra recovery layer; server drafts remain authoritative.
   }
@@ -396,8 +464,10 @@ function restoreLocalDraft(serverUpdatedAt) {
   try {
     const cached = JSON.parse(localStorage.getItem(LOCAL_DRAFT_KEY) || 'null');
     if (!cached?.content || cached.content.id !== 'kanto-6d') return;
-    if (!serverUpdatedAt || new Date(cached.savedAt) > new Date(serverUpdatedAt)) {
+    const isNewer = !serverUpdatedAt || new Date(cached.savedAt) > new Date(serverUpdatedAt);
+    if (isNewer && (cached.dirty === true || cached.dirty == null)) {
       state.content = cached.content;
+      synchronizeContent();
       state.dirty = true;
       showToast('已恢复此设备上较新的未提交草稿');
     }
@@ -407,10 +477,20 @@ function restoreLocalDraft(serverUpdatedAt) {
 }
 
 function validateContentForPublish() {
+  synchronizeContent();
   const errors = [];
-  if (!state.content.card.title.trim()) errors.push('产品标题不能为空');
-  if (state.content.days.length !== 6) errors.push('必须保留6天行程');
-  state.content.days.forEach((day, index) => {
+  const content = state.content;
+  if (!content.card?.title?.trim()) errors.push('产品标题不能为空');
+  if (!content.card?.summary?.trim()) errors.push('产品摘要不能为空');
+  if (!content.hero?.copy?.trim()) errors.push('首屏介绍不能为空');
+  if (!content.overview?.title?.trim() || !content.overview?.copy?.trim() || !content.overview?.route?.trim()) errors.push('行程概览信息不完整');
+  if (content.overview?.facts?.length !== 4 || content.overview.facts.some((fact) => !fact.label?.trim() || !fact.value?.trim())) errors.push('行程概览的4项信息必须填写完整');
+  if (!content.map?.title?.trim() || !content.map?.copy?.trim() || !content.map?.caption?.trim() || !content.map?.alt?.trim()) errors.push('行程地图标题与说明不完整');
+  if (content.highlights?.items?.length !== 4 || content.highlights.items.some((item) => !item.title?.trim() || !item.eyebrow?.trim() || !item.image?.alt)) errors.push('4项行程亮点必须填写完整');
+  if (!content.stays?.groups?.length || content.stays.groups.some((group) => !group.title?.trim() || !group.hotels?.length)) errors.push('酒店甄选信息不完整');
+  if (!content.notes?.items?.length || content.notes.items.some((item) => !item.title?.trim() || !item.copy?.trim())) errors.push('行程说明信息不完整');
+  if (content.days.length !== 6) errors.push('必须保留6天行程');
+  content.days.forEach((day, index) => {
     if (!day.title.trim()) errors.push(`第${index + 1}天标题不能为空`);
     if (!day.story.trim()) errors.push(`第${index + 1}天行程描述不能为空`);
     if (!day.distance?.value?.trim()) errors.push(`第${index + 1}天行车里程不能为空`);
@@ -427,20 +507,25 @@ async function saveDraft() {
     state.dirty = false;
     updateSaveState();
     saveLocalDraft();
+    schedulePreview();
     return showToast('演示模式：草稿已保存在此浏览器');
   }
   state.saving = true;
   updateSaveState();
   elements.saveButton.disabled = true;
   try {
-    const result = await callCms('saveDraft', { content: state.content });
+    synchronizeContent();
+    const result = await callCms('saveDraft', { content: state.content, revision: state.revision });
+    state.revision = Number(result.revision) || state.revision;
     state.dirty = false;
     saveLocalDraft();
     updateSaveState(`已保存 ${formatTime(result.savedAt)}`);
+    schedulePreview();
     showToast('草稿已安全保存');
   } catch (error) {
     updateSaveState('保存失败');
-    showToast(error.message, 'error');
+    if (error.code === 'DRAFT_CONFLICT') openDraftConflictModal(error.message);
+    else showToast(error.message, 'error');
   } finally {
     state.saving = false;
     elements.saveButton.disabled = false;
@@ -478,6 +563,7 @@ async function handleImageUpload(input) {
         journeyId: state.content.id,
         alt,
         slug: prepared.slug,
+        replacesAssetId: existing?._assetId || '',
         variants: prepared.variants,
       });
       setPath(path, staged.image);
@@ -499,30 +585,146 @@ function schedulePreview() {
   state.previewFrame = requestAnimationFrame(renderPreview);
 }
 
-function renderPreview() {
-  const data = state.content;
-  const day = data.days[state.selectedDay] || data.days[0];
+function previewSectionTitle(kicker, title, copy) {
+  return `<header class="preview-section-title"><small>${escapeHtml(kicker)}</small><h3>${escapeHtml(title)}</h3>${copy ? `<p>${escapeHtml(copy)}</p>` : ''}</header>`;
+}
+
+function previewMetric(eyebrow, label, metric) {
+  const value = metric?.value || '待补充';
+  const note = metric?.note || '';
+  return `<div><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}：${escapeHtml(value)}</strong>${note ? `<span>${escapeHtml(note)}</span>` : ''}</div>`;
+}
+
+function renderOverviewPreview(data) {
   const hero = currentImageUrl('hero.image', data.hero.image);
-  const dayImage = currentImageUrl(`days.${state.selectedDay}.image`, day.image) || hero;
-  elements.journeyPreview.className = `journey-preview ${state.device === 'mobile' ? 'mobile' : ''}`;
-  elements.journeyPreview.innerHTML = `<div class="preview-browser"><i></i><i></i><i></i></div>
-    <section class="preview-hero" style="background-image:url('${escapeHtml(hero)}')">
+  const mapImage = imageUrl(state.device === 'mobile' ? data.map.mobile : data.map.desktop);
+  const facts = data.overview.facts || [];
+  const bookingItems = [
+    ['CURRENT STATUS', data.booking.currentStatus],
+    ['DEPARTURE', data.booking.departure],
+    ['REFERENCE PRICE', data.booking.price],
+    ['TRAVEL STYLE', data.booking.travelStyle],
+  ];
+  return `<section class="preview-hero"${hero ? ` style="background-image:url('${escapeHtml(hero)}')"` : ''}>
       <div class="preview-hero-content"><small>${escapeHtml(data.hero.kicker)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${escapeHtml(data.hero.copy)}</p><div class="preview-tags">${data.hero.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div></div>
     </section>
     <div class="preview-content">
-      <header class="preview-section-title"><small>JOURNEY OVERVIEW</small><h3>${escapeHtml(data.overview.title)}</h3><p>${escapeHtml(data.overview.copy)}</p></header>
+      ${previewSectionTitle('JOURNEY OVERVIEW', data.overview.title, data.overview.copy)}
       <div class="preview-route">${escapeHtml(data.overview.route)}</div>
+      <div class="preview-facts">${facts.map((fact) => `<div><small>${escapeHtml(fact.label)}</small><strong>${escapeHtml(fact.value)}</strong></div>`).join('')}</div>
+      <section class="preview-map-card"><small>ROUTE MAP</small><h4>${escapeHtml(data.map.title)}</h4><p>${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : ''}<span>${escapeHtml(data.map.caption)}</span></section>
+      <aside class="preview-booking">
+        <div><small>TRIP INFORMATION</small><h4>${withBreaks(data.booking.title || data.card.title)}</h4><p>${escapeHtml(data.hero.status)}</p></div>
+        <dl>${bookingItems.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '待公布')}</dd></div>`).join('')}</dl>
+      </aside>
+    </div>`;
+}
+
+function renderDaysPreview(data) {
+  const day = data.days[state.selectedDay] || data.days[0];
+  const dayImage = currentImageUrl(`days.${state.selectedDay}.image`, day.image) || currentImageUrl('hero.image', data.hero.image);
+  const meals = [
+    ['BREAKFAST', '早餐', day.meals.breakfast],
+    ['LUNCH', '午餐', day.meals.lunch],
+    ['DINNER', '晚餐', day.meals.dinner],
+    ['HOTEL', '住宿', day.hotel],
+  ];
+  return `<div class="preview-content preview-content--day">
+      ${previewSectionTitle('DAY BY DAY', `DAY ${day.number} · ${day.title}`, '右侧正在显示左侧当前选中的当天内容。')}
+      <div class="preview-day-index" aria-label="当前预览天数">${data.days.map((item, index) => `<span class="${index === state.selectedDay ? 'active' : ''}">${escapeHtml(item.number)}</span>`).join('')}</div>
       <article class="preview-day">
-        <header class="preview-day-head"><small>DAY ${escapeHtml(day.number)}</small><h4>${escapeHtml(day.title)}</h4><span>${escapeHtml(day.route)}</span></header>
+        <header class="preview-day-head"><small>DAY ${escapeHtml(day.number)}</small><h4>${escapeHtml(day.title)}</h4><span>${escapeHtml(day.route)}</span><div class="preview-stops">${day.stops.map((stop) => `<b>${escapeHtml(stop)}</b>`).join('')}</div></header>
         ${dayImage ? `<img src="${escapeHtml(dayImage)}" alt="" />` : ''}
         <div class="preview-day-body"><p>${escapeHtml(day.story)}</p><div class="preview-metrics">
-          <div><small>DISTANCE</small><strong>行车里程：${escapeHtml(day.distance.value)}<br>${escapeHtml(day.distance.note || '')}</strong></div>
-          <div><small>DURATION</small><strong>预计驾驶时间：${escapeHtml(day.duration.value)}<br>${escapeHtml(day.duration.note || '')}</strong></div>
-          <div><small>ACTIVITY</small><strong>体力消耗：${escapeHtml(day.activity.value)}<br>${escapeHtml(day.activity.note || '')}</strong></div>
-          <div><small>HOTEL</small><strong>${escapeHtml(day.hotel)}</strong></div>
-        </div></div>
+          ${previewMetric('DISTANCE', '行车里程', day.distance)}
+          ${previewMetric('DURATION', '预计驾驶时间', day.duration)}
+          ${previewMetric('ACTIVITY', '体力消耗', day.activity)}
+          ${previewMetric('COMFORT', '舒适度', day.comfort)}
+        </div>
+        <div class="preview-meals">${meals.map(([eyebrow, label, value]) => `<div><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><p>${withBreaks(value || '待确认')}</p></div>`).join('')}</div>
+        ${day.footnote ? `<p class="preview-footnote">${escapeHtml(day.footnote)}</p>` : ''}
+        </div>
       </article>
     </div>`;
+}
+
+function renderHighlightsPreview(data) {
+  return `<div class="preview-content preview-content--highlights">
+      ${previewSectionTitle('VISUAL STORY', data.highlights.title, data.highlights.copy)}
+      <div class="preview-highlight-grid">${data.highlights.items.map((item, index) => {
+        const image = currentImageUrl(`highlights.items.${index}.image`, item.image);
+        return `<article class="preview-highlight-card${image ? '' : ' empty'}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.eyebrow)}</small><h4>${escapeHtml(item.title)}</h4></div></article>`;
+      }).join('')}</div>
+    </div>`;
+}
+
+function renderStaysPreview(data) {
+  return `<div class="preview-content preview-content--stays">
+      ${previewSectionTitle('STAYS & NOTES', data.stays.title, data.stays.copy)}
+      <div class="preview-stay-grid">${data.stays.groups.map((group) => `<article class="preview-stay-card"><small>${escapeHtml(group.eyebrow)}</small><h4>${escapeHtml(group.title)}</h4><ul>${group.hotels.map((hotel) => `<li>${escapeHtml(hotel)}</li>`).join('')}</ul><p>${escapeHtml(group.copy)}</p></article>`).join('')}</div>
+      <section class="preview-notes">
+        ${previewSectionTitle('TRAVEL NOTES', data.notes.title, data.notes.copy)}
+        <div class="preview-note-grid">${data.notes.items.map((item) => `<article><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.copy)}</p></article>`).join('')}</div>
+        <p class="preview-disclaimer">${escapeHtml(data.notes.photoDisclaimer)}</p>
+      </section>
+    </div>`;
+}
+
+function renderPublishPreview(data) {
+  const errors = validateContentForPublish();
+  const latest = state.history[0];
+  const checks = errors.length
+    ? errors.slice(0, 4).map((error) => `<li class="warning">${escapeHtml(error)}</li>`).join('')
+    : '<li>六天行程字段完整</li><li>行车里程与预计驾驶时间完整</li><li>响应式图片路径已准备</li><li>官网继续使用静态文件高速加载</li>';
+  return `<header class="preview-system-head">
+      <span class="preview-system-badge ${state.dirty ? 'warning' : ''}">${state.dirty ? '有待处理修改' : '草稿状态正常'}</span>
+      <small>PUBLISH CENTER</small><h2>发布前状态一目了然</h2><p>这里是内部发布检查，不会作为官网页面展示给游客。</p>
+    </header>
+    <div class="preview-system-content">
+      <div class="preview-status-grid">
+        <article><small>DRAFT</small><strong>${state.dirty ? '尚未保存' : '已保存'}</strong><span>${state.dirty ? '请先保存草稿' : '可以继续发布检查'}</span></article>
+        <article><small>CONTENT</small><strong>${data.days.length}天行程</strong><span>${data.highlights.items.length}项亮点 · ${data.stays.groups.length}组住宿</span></article>
+        <article><small>VALIDATION</small><strong>${errors.length ? `${errors.length}项待完善` : '检查通过'}</strong><span>${errors.length ? '发布前需要处理' : '关键字段均已填写'}</span></article>
+      </div>
+      <section class="preview-system-card"><small>PRE-PUBLISH CHECK</small><h3>发布检查</h3><ul class="preview-check-list">${checks}</ul></section>
+      <section class="preview-system-card"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || '更新官网行程')}</strong><span>${escapeHtml(latest.publishedByName || latest.publishedBy || '')} · ${escapeHtml(formatDate(latest.publishedAt))}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7))}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
+    </div>`;
+}
+
+function renderStaffPreview() {
+  const staff = state.staff?.staff || (state.actor ? [state.actor] : []);
+  const invites = (state.staff?.invites || []).filter((invite) => invite.active);
+  const activeStaff = staff.filter((person) => person.active !== false);
+  return `<header class="preview-system-head preview-system-head--staff">
+      <span class="preview-system-badge">仅工作人员可见</span>
+      <small>TEAM ACCESS</small><h2>账号与权限状态</h2><p>这里是内部权限概览，不会出现在飞鸟旅行官网。</p>
+    </header>
+    <div class="preview-system-content">
+      <div class="preview-status-grid">
+        <article><small>ACTIVE STAFF</small><strong>${activeStaff.length}人</strong><span>当前可正常使用后台</span></article>
+        <article><small>PENDING</small><strong>${invites.length}人</strong><span>等待首次邮箱登录</span></article>
+        <article><small>YOUR ROLE</small><strong>${state.actor?.role === 'admin' ? '管理员' : '编辑'}</strong><span>${escapeHtml(state.actor?.name || state.actor?.email || '当前账号')}</span></article>
+      </div>
+      <section class="preview-system-card"><small>ACTIVE TEAM</small><h3>已加入人员</h3><div class="preview-team-list">${activeStaff.length ? activeStaff.map((person) => `<div><span><strong>${escapeHtml(person.name || person.email)}</strong><small>${escapeHtml(person.email || '')}</small></span><b>${person.role === 'admin' ? '管理员' : '编辑'}</b></div>`).join('') : '<p class="preview-empty">暂无人员记录。</p>'}</div></section>
+      <section class="preview-system-card"><small>PENDING INVITES</small><h3>待加入邮箱</h3><div class="preview-team-list">${invites.length ? invites.map((invite) => `<div><span><strong>${escapeHtml(invite.email)}</strong><small>${escapeHtml(formatDate(invite.createdAt))}</small></span><b>${invite.role === 'admin' ? '管理员' : '编辑'}</b></div>`).join('') : '<p class="preview-empty">当前没有待加入邀请。</p>'}</div></section>
+    </div>`;
+}
+
+const previewRenderers = {
+  overview: renderOverviewPreview,
+  days: renderDaysPreview,
+  highlights: renderHighlightsPreview,
+  stays: renderStaysPreview,
+  publish: renderPublishPreview,
+  staff: renderStaffPreview,
+};
+
+function renderPreview() {
+  const [eyebrow, title] = PREVIEW_COPY[state.tab];
+  elements.previewEyebrow.textContent = eyebrow;
+  elements.previewTitle.textContent = title;
+  elements.journeyPreview.className = `journey-preview preview-${state.tab}${state.device === 'mobile' ? ' mobile' : ''}`;
+  elements.journeyPreview.innerHTML = `<div class="preview-browser"><i></i><i></i><i></i></div>${previewRenderers[state.tab](state.content)}`;
 }
 
 async function loadHistory() {
@@ -537,7 +739,7 @@ async function loadHistory() {
 
 async function loadStaff() {
   if (DEMO_MODE) {
-    state.staff = { staff: [{ name: '演示管理员', email: 'demo@asuka.travel', role: 'admin', active: true }], invites: [] };
+    state.staff = { staff: [{ uid: 'demo', name: '演示管理员', email: 'demo@asuka.travel', role: 'admin', active: true }], invites: [] };
     return;
   }
   try {
@@ -553,21 +755,65 @@ async function selectTab(tab) {
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
   [elements.sectionEyebrow.textContent, elements.sectionTitle.textContent] = TAB_COPY[tab];
   elements.cmsApp.classList.remove('sidebar-open');
+  elements.mobileMenu.setAttribute('aria-expanded', 'false');
+  renderEditor();
+  renderPreview();
+  elements.previewStage.scrollTo({ top: 0, behavior: 'smooth' });
   if (tab === 'publish') await loadHistory();
   if (tab === 'staff') await loadStaff();
+  if (state.tab !== tab || !['publish', 'staff'].includes(tab)) return;
   renderEditor();
+  renderPreview();
 }
 
 function openModal(html) {
+  state.modalReturnFocus = document.activeElement;
   elements.modalContent.innerHTML = html;
+  const title = elements.modalContent.querySelector('h2');
+  if (title) title.id = 'modalTitle';
   elements.modalBackdrop.hidden = false;
   document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => elements.modalContent.querySelector('button, a, input, select, textarea')?.focus());
 }
 
 function closeModal() {
   elements.modalBackdrop.hidden = true;
   elements.modalContent.innerHTML = '';
   document.body.style.overflow = '';
+  state.modalReturnFocus?.focus?.();
+  state.modalReturnFocus = null;
+}
+
+function openDraftConflictModal(message) {
+  openModal(`<p class="editor-kicker">NEWER DRAFT FOUND</p><h2>有同事保存了更新版本</h2><p>${escapeHtml(message)}</p><div class="publish-checks"><div>✓ 你当前输入的内容仍保留在此页面和本机临时草稿中</div><div>✓ 系统没有覆盖同事的新版本</div></div><div class="modal-actions"><button class="secondary" data-close-modal type="button">先返回复制内容</button><button class="primary" id="reloadLatestDraft" type="button">读取同事的最新版</button></div>`);
+  elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
+  elements.modalContent.querySelector('#reloadLatestDraft').addEventListener('click', reloadLatestDraft);
+}
+
+async function reloadLatestDraft() {
+  const button = elements.modalContent.querySelector('#reloadLatestDraft');
+  button.disabled = true;
+  button.textContent = '正在读取…';
+  try {
+    const result = await callCms('getContent');
+    state.content = clone(result.content || initialContent);
+    state.published = clone(result.published || result.content || initialContent);
+    state.draftInfo = result.draftInfo || null;
+    state.revision = Number(result.draftInfo?.revision) || 0;
+    state.dirty = false;
+    state.publishRequestId = null;
+    synchronizeContent();
+    saveLocalDraft();
+    closeModal();
+    renderEditor();
+    renderPreview();
+    updateSaveState();
+    showToast('已读取同事保存的最新草稿');
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = '重新读取';
+    showToast(error.message, 'error');
+  }
 }
 
 function openPublishModal() {
@@ -578,6 +824,7 @@ function openPublishModal() {
     elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
     return;
   }
+  state.publishRequestId ||= window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   openModal(`<p class="editor-kicker">READY TO PUBLISH</p><h2>确认发布到飞鸟官网？</h2><p>本次会同时更新关东6日的文字、行车数据、响应式图片与静态页面。GitHub Pages 通常在1—3分钟内显示最新版。</p>
     <div class="publish-checks"><div>✓ 六天行程字段完整</div><div>✓ 手机与桌面图片路径有效</div><div>✓ 发布密钥只在云函数中使用</div></div>
     <div class="field full"><label for="publishMessage">本次提交说明</label><input id="publishMessage" maxlength="100" value="更新关东6日行程内容" /></div>
@@ -596,21 +843,46 @@ async function publishSite() {
       await new Promise((resolve) => setTimeout(resolve, 700));
       state.dirty = false;
       updateSaveState();
+      schedulePreview();
       openModal('<p class="editor-kicker">DEMO COMPLETE</p><h2>演示发布完成</h2><p>正式环境会在这里显示 GitHub 提交地址和最新版官网地址。</p><div class="modal-actions"><button class="primary" data-close-modal type="button">完成</button></div>');
       elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
       return;
     }
-    const result = await callCms('publish', { content: state.content, message });
+    synchronizeContent();
+    const result = await callCms('publish', {
+      content: state.content,
+      message,
+      revision: state.revision,
+      requestId: state.publishRequestId,
+    });
+    if (result.draftAdvanced) {
+      state.published = stripClientInternal(clone(state.content));
+      state.publishRequestId = null;
+      state.dirty = true;
+      saveLocalDraft();
+      updateSaveState('同事另有新草稿');
+      schedulePreview();
+      openModal(`<p class="editor-kicker">PUBLISHED · NEW DRAFT FOUND</p><h2>官网已发布，但同事又保存了新草稿</h2><p>官网已经收到你刚才确认的版本；为避免覆盖同事随后保存的内容，系统没有改写后台草稿。</p><div class="publish-checks"><div>✓ 官网版本 ${escapeHtml(result.sha.slice(0, 7))}</div><div>✓ 同事的新草稿已安全保留</div></div><div class="modal-actions"><button class="secondary" data-close-modal type="button">先保留当前页面</button><button class="primary" id="reloadLatestDraft" type="button">读取同事的最新版</button></div>`);
+      elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
+      elements.modalContent.querySelector('#reloadLatestDraft').addEventListener('click', reloadLatestDraft);
+      showToast('官网已发布；后台检测到同事的新草稿', 'error');
+      return;
+    }
+    state.revision = Number(result.revision) || state.revision;
     state.dirty = false;
+    state.content = stripClientInternal(state.content);
     state.published = clone(state.content);
+    state.publishRequestId = null;
     saveLocalDraft();
     updateSaveState(`已发布 ${formatTime(result.publishedAt)}`);
-    openModal(`<p class="editor-kicker">PUBLISHED</p><h2>官网已提交更新</h2><p>GitHub Pages 正在生成最新版，通常需要1—3分钟。</p><div class="publish-checks"><div>✓ GitHub 提交 ${escapeHtml(result.sha.slice(0, 7))}</div><div>✓ 官网静态内容已生成</div></div><div class="modal-actions"><a class="secondary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(result.commitUrl)}" target="_blank" rel="noopener">查看 GitHub</a><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(result.siteUrl)}" target="_blank" rel="noopener">打开最新版官网</a></div>`);
-    showToast('官网更新已提交');
+    schedulePreview();
+    openModal(`<p class="editor-kicker">PUBLISHED</p><h2>${result.alreadyCurrent ? '官网已经是相同内容' : '官网已提交更新'}</h2><p>${result.alreadyCurrent ? '系统识别到本次内容已经发布过，因此没有重复创建 GitHub 提交。' : 'GitHub Pages 正在生成最新版，通常需要1—3分钟。'}</p><div class="publish-checks"><div>✓ GitHub 版本 ${escapeHtml(result.sha.slice(0, 7))}</div><div>✓ 官网静态内容已确认</div></div><div class="modal-actions"><a class="secondary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(result.commitUrl)}" target="_blank" rel="noopener">查看 GitHub</a><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(result.siteUrl)}" target="_blank" rel="noopener">打开最新版官网</a></div>`);
+    showToast(result.alreadyCurrent ? '官网已经是最新版' : '官网更新已提交');
   } catch (error) {
     button.disabled = false;
     button.textContent = '重试发布';
-    showToast(error.message, 'error');
+    if (error.code === 'DRAFT_CONFLICT') openDraftConflictModal(error.message);
+    else showToast(error.message, 'error');
   }
 }
 
@@ -630,10 +902,76 @@ async function inviteStaff(event) {
     }
     showToast('工作人员邮箱已加入授权列表');
     renderEditor();
+    renderPreview();
   } catch (error) {
     showToast(error.message, 'error');
   } finally {
     button.disabled = false;
+  }
+}
+
+async function saveStaffAccess(button) {
+  const uid = button.dataset.saveStaff;
+  const role = elements.editorCanvas.querySelector(`[data-staff-role="${CSS.escape(uid)}"]`)?.value || 'editor';
+  const active = button.dataset.active !== 'false';
+  button.disabled = true;
+  try {
+    if (DEMO_MODE) {
+      const person = state.staff.staff.find((item) => item.uid === uid);
+      if (person) Object.assign(person, { role, active });
+    } else {
+      await callCms('updateStaff', { uid, role, active });
+      await loadStaff();
+    }
+    renderEditor();
+    renderPreview();
+    showToast('工作人员权限已更新');
+  } catch (error) {
+    button.disabled = false;
+    showToast(error.message, 'error');
+  }
+}
+
+async function toggleStaffAccess(button) {
+  const uid = button.dataset.toggleStaff;
+  const role = elements.editorCanvas.querySelector(`[data-staff-role="${CSS.escape(uid)}"]`)?.value || button.dataset.role || 'editor';
+  const active = button.dataset.nextActive === 'true';
+  button.disabled = true;
+  try {
+    if (DEMO_MODE) {
+      const person = state.staff.staff.find((item) => item.uid === uid);
+      if (person) Object.assign(person, { role, active });
+    } else {
+      await callCms('updateStaff', { uid, role, active });
+      await loadStaff();
+    }
+    renderEditor();
+    renderPreview();
+    showToast(active ? '账号已重新启用' : '账号已停用');
+  } catch (error) {
+    button.disabled = false;
+    showToast(error.message, 'error');
+  }
+}
+
+async function revokeStaffInvite(button) {
+  const email = button.dataset.revokeInvite;
+  if (!confirm(`确定取消 ${email} 的后台邀请吗？`)) return;
+  button.disabled = true;
+  try {
+    if (DEMO_MODE) {
+      const invite = state.staff.invites.find((item) => item.email === email);
+      if (invite) invite.active = false;
+    } else {
+      await callCms('revokeInvite', { email });
+      await loadStaff();
+    }
+    renderEditor();
+    renderPreview();
+    showToast('邀请已取消');
+  } catch (error) {
+    button.disabled = false;
+    showToast(error.message, 'error');
   }
 }
 
@@ -680,8 +1018,11 @@ async function initializeApp(actor) {
       const result = await callCms('getContent');
       state.content = clone(result.content || initialContent);
       state.published = clone(result.published || result.content || initialContent);
+      state.draftInfo = result.draftInfo || null;
+      state.revision = Number(result.draftInfo?.revision) || 0;
       restoreLocalDraft(result.draftInfo?.updatedAt);
     }
+    synchronizeContent();
     renderEditor();
     renderPreview();
     updateSaveState();
@@ -778,10 +1119,27 @@ elements.signOutButton.addEventListener('click', async () => {
   if (!DEMO_MODE) await signOut();
   location.href = location.pathname;
 });
-elements.mobileMenu.addEventListener('click', () => elements.cmsApp.classList.toggle('sidebar-open'));
+elements.mobileMenu.addEventListener('click', () => {
+  const open = elements.cmsApp.classList.toggle('sidebar-open');
+  elements.mobileMenu.setAttribute('aria-expanded', String(open));
+});
+elements.cmsApp.addEventListener('click', (event) => {
+  if (event.target !== elements.cmsApp || !elements.cmsApp.classList.contains('sidebar-open')) return;
+  elements.cmsApp.classList.remove('sidebar-open');
+  elements.mobileMenu.setAttribute('aria-expanded', 'false');
+});
 elements.modalClose.addEventListener('click', closeModal);
 elements.modalBackdrop.addEventListener('click', (event) => {
   if (event.target === elements.modalBackdrop) closeModal();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  if (!elements.modalBackdrop.hidden) closeModal();
+  else if (elements.cmsApp.classList.contains('sidebar-open')) {
+    elements.cmsApp.classList.remove('sidebar-open');
+    elements.mobileMenu.setAttribute('aria-expanded', 'false');
+    elements.mobileMenu.focus();
+  }
 });
 window.addEventListener('beforeunload', (event) => {
   if (!state.dirty) return;

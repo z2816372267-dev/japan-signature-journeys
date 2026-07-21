@@ -70,7 +70,10 @@ async function readDoc(collection, id) {
 }
 
 async function writeDoc(collection, id, data) {
-  return db.collection(collection).doc(id).set({ data });
+  const safeData = Object.fromEntries(
+    Object.entries(data || {}).filter(([key]) => key !== '_id' && key !== '_openid'),
+  );
+  return db.collection(collection).doc(id).set({ data: safeData });
 }
 
 async function getCaller() {
@@ -115,6 +118,12 @@ async function authorize(requiredRole = 'editor') {
         updatedAt: now(),
       };
       await writeDoc(COLLECTIONS.staff, user.uid, staff);
+      await writeDoc(COLLECTIONS.invites, emailId(user.email), {
+        ...invite,
+        active: false,
+        acceptedAt: now(),
+        acceptedByUid: user.uid,
+      });
     }
   }
 
@@ -158,7 +167,12 @@ async function getContent(actor) {
     content: draft?.content || published,
     published,
     draftInfo: draft
-      ? { updatedAt: draft.updatedAt, updatedBy: draft.updatedBy, updatedByName: draft.updatedByName }
+      ? {
+          updatedAt: draft.updatedAt,
+          updatedBy: draft.updatedBy,
+          updatedByName: draft.updatedByName,
+          revision: Number(draft.revision) || 0,
+        }
       : null,
     actor,
   };
@@ -166,17 +180,30 @@ async function getContent(actor) {
 
 async function saveDraft(actor, event) {
   const content = validateJourney(event.content);
+  const current = await readDoc(COLLECTIONS.drafts, content.id);
+  const currentRevision = Number(current?.revision) || 0;
+  const expectedRevision = Number(event.revision) || 0;
+  if (currentRevision !== expectedRevision) {
+    const editor = current?.updatedByName || current?.updatedBy || '另一位工作人员';
+    throw cmsError(
+      'DRAFT_CONFLICT',
+      `${editor} 已保存了较新的内容。为避免覆盖，系统没有保存你当前的修改，请重新读取最新草稿。`,
+      409,
+    );
+  }
   const savedAt = now();
+  const revision = currentRevision + 1;
   await writeDoc(COLLECTIONS.drafts, content.id, {
     journeyId: content.id,
     content,
+    revision,
     updatedAt: savedAt,
     updatedBy: actor.email,
     updatedByUid: actor.uid,
     updatedByName: actor.name,
   });
-  await audit(actor, 'save-draft', { journeyId: content.id });
-  return { savedAt };
+  await audit(actor, 'save-draft', { journeyId: content.id, revision });
+  return { savedAt, revision };
 }
 
 function decodeVariant(variant, expectedMime) {
@@ -184,8 +211,8 @@ function decodeVariant(variant, expectedMime) {
     throw cmsError('INVALID_IMAGE', '图片格式不符合要求');
   }
   const buffer = Buffer.from(variant.base64, 'base64');
-  if (!buffer.length || buffer.length > 2 * 1024 * 1024) {
-    throw cmsError('INVALID_IMAGE', '单张图片处理结果必须小于2MB');
+  if (!buffer.length || buffer.length > 1400 * 1024) {
+    throw cmsError('INVALID_IMAGE', '单张图片处理结果必须小于1.4MB');
   }
   if (expectedMime === 'image/webp') {
     if (buffer.slice(0, 4).toString('ascii') !== 'RIFF' || buffer.slice(8, 12).toString('ascii') !== 'WEBP') {
@@ -223,26 +250,24 @@ async function stageAsset(actor, event) {
     decoded[key] = decodeVariant(input[key], spec.mime);
     total += decoded[key].length;
   }
-  if (total > 5 * 1024 * 1024) throw cmsError('INVALID_IMAGE', '整组响应式图片必须小于5MB');
+  if (total > 3 * 1024 * 1024) throw cmsError('INVALID_IMAGE', '整组响应式图片必须小于3MB');
 
   const assetId = crypto.randomUUID().replaceAll('-', '');
   const slug = safeSlug(event.slug);
   const month = new Date().toISOString().slice(0, 7).replace('-', '');
-  const variants = [];
-
-  for (const [key, spec] of Object.entries(specs)) {
+  const variants = await Promise.all(Object.entries(specs).map(async ([key, spec]) => {
     const filename = `${slug}-${assetId}-${spec.suffix}`;
     const cloudPath = `cms-assets/${actor.uid}/${assetId}/${filename}`;
     const repoPath = `images/cms/kanto-6d/${month}/${filename}`;
     const uploaded = await app.uploadFile({ cloudPath, fileContent: decoded[key] });
-    variants.push({
+    return {
       key,
       fileID: uploaded.fileID,
       repoPath,
       mime: spec.mime,
       bytes: decoded[key].length,
-    });
-  }
+    };
+  }));
 
   const largest = input.webp1600;
   const asset = {
@@ -258,6 +283,18 @@ async function stageAsset(actor, event) {
     createdAt: now(),
   };
   await writeDoc(COLLECTIONS.assets, assetId, asset);
+  const replacesAssetId = String(event.replacesAssetId || '').trim();
+  if (/^[a-f0-9]{32}$/.test(replacesAssetId) && replacesAssetId !== assetId) {
+    const replaced = await readDoc(COLLECTIONS.assets, replacesAssetId);
+    if (replaced?.status === 'staged' && replaced.ownerUid === actor.uid) {
+      await writeDoc(COLLECTIONS.assets, replacesAssetId, {
+        ...replaced,
+        status: 'replaced',
+        replacedAt: now(),
+        replacedByAssetId: assetId,
+      });
+    }
+  }
   await audit(actor, 'stage-asset', { journeyId: event.journeyId, assetId });
 
   const paths = Object.fromEntries(variants.map((variant) => [variant.key, variant.repoPath]));
@@ -286,72 +323,164 @@ function collectAssetIds(value, result = new Set()) {
 }
 
 async function stagedAssetFiles(content) {
-  const files = [];
-  for (const assetId of collectAssetIds(content)) {
-    const asset = await readDoc(COLLECTIONS.assets, assetId);
-    if (!asset || asset.status !== 'staged') {
+  const assetIds = [...collectAssetIds(content)];
+  const assets = await Promise.all(assetIds.map((assetId) => readDoc(COLLECTIONS.assets, assetId)));
+  assets.forEach((asset) => {
+    if (!asset || !['staged', 'published'].includes(asset.status)) {
       throw cmsError('ASSET_MISSING', '有一张新图片尚未成功暂存，请重新上传', 409);
     }
-    for (const variant of asset.variants) {
+  });
+  const files = (await Promise.all(assets.flatMap((asset) => asset.variants.map(async (variant) => {
       const downloaded = await app.downloadFile({ fileID: variant.fileID });
       if (!downloaded.fileContent) throw cmsError('ASSET_MISSING', '无法读取暂存图片', 500);
-      files.push({ path: variant.repoPath, content: downloaded.fileContent });
-    }
+      return { path: variant.repoPath, content: downloaded.fileContent };
+    })))).flat();
+  return { files, assets };
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
   }
-  return files;
+  return JSON.stringify(value);
+}
+
+function publishJobId(event, cleanContent, message) {
+  const requestId = String(event.requestId || '').trim().toLowerCase();
+  if (/^[a-z0-9-]{8,80}$/.test(requestId)) return `job-${requestId}`;
+  return `job-${crypto.createHash('sha256').update(`${canonicalJson(cleanContent)}\n${message}`).digest('hex').slice(0, 32)}`;
+}
+
+async function markAssetsPublished(assets, actor, result, publishedAt) {
+  await Promise.all(assets.map((asset) => writeDoc(COLLECTIONS.assets, asset.assetId, {
+    ...asset,
+    status: 'published',
+    publishedAt,
+    publishedBy: actor.email,
+    commitSha: result.sha,
+  })));
 }
 
 async function publish(actor, event) {
-  const draft = event.content || (await readDoc(COLLECTIONS.drafts, 'kanto-6d'))?.content;
+  const currentDraft = await readDoc(COLLECTIONS.drafts, 'kanto-6d');
+  const currentRevision = Number(currentDraft?.revision) || 0;
+  const expectedRevision = Number(event.revision) || 0;
+  if (event.content && currentRevision !== expectedRevision) {
+    const editor = currentDraft?.updatedByName || currentDraft?.updatedBy || '另一位工作人员';
+    throw cmsError('DRAFT_CONFLICT', `${editor} 已保存了较新的草稿，请重新读取后再发布。`, 409);
+  }
+  const draft = event.content || currentDraft?.content;
   const content = validateJourney(draft);
   const cleanContent = stripInternal(content);
-  const publisher = github();
-  const currentIndex = await publisher.getTextFile('index.html');
-  const renderedIndex = renderSite(currentIndex, cleanContent);
-  const assets = await stagedAssetFiles(content);
   const messageInput = String(event.message || '').trim().replace(/[\r\n]+/g, ' ').slice(0, 100);
   const message = messageInput || 'Update Kanto journey via Asuka CMS';
-  const files = [
-    { path: 'index.html', content: renderedIndex },
-    { path: 'content/journeys/kanto-6d.json', content: `${JSON.stringify(cleanContent, null, 2)}\n` },
-    ...assets,
-  ];
-  const result = await publisher.publish(files, message);
-  const publishedAt = now();
-
-  await writeDoc(COLLECTIONS.drafts, cleanContent.id, {
+  const jobId = publishJobId(event, cleanContent, message);
+  const previousJob = await readDoc(COLLECTIONS.publishes, jobId);
+  if (previousJob?.status === 'completed' && previousJob.result) return previousJob.result;
+  if (previousJob?.status === 'running' && Date.now() - new Date(previousJob.startedAt).getTime() < 30_000) {
+    throw cmsError('PUBLISH_IN_PROGRESS', '同一次发布仍在处理中，请等待约30秒后再查看或重试。', 409);
+  }
+  await writeDoc(COLLECTIONS.publishes, jobId, {
+    status: 'running',
     journeyId: cleanContent.id,
-    content: cleanContent,
-    updatedAt: publishedAt,
-    updatedBy: actor.email,
-    updatedByUid: actor.uid,
-    updatedByName: actor.name,
+    message,
+    startedAt: now(),
+    startedBy: actor.email,
   });
-  await db.collection(COLLECTIONS.publishes).add({
-    data: {
-      journeyId: cleanContent.id,
-      commitSha: result.sha,
-      commitUrl: result.commitUrl,
-      message,
-      publishedAt,
-      publishedBy: actor.email,
-      publishedByUid: actor.uid,
-      publishedByName: actor.name,
-    },
-  });
-  await audit(actor, 'publish', { journeyId: cleanContent.id, commitSha: result.sha });
 
-  return {
-    ...result,
-    publishedAt,
-    siteUrl: `${SITE.url}?v=${result.sha.slice(0, 7)}`,
-  };
+  try {
+    const publisher = github();
+    const [currentIndex, publishedText, staged] = await Promise.all([
+      publisher.getTextFile('index.html'),
+      publisher.getTextFile('content/journeys/kanto-6d.json').catch(() => ''),
+      stagedAssetFiles(content),
+    ]);
+    let result;
+    let alreadyCurrent = false;
+    try {
+      const publishedContent = publishedText ? stripInternal(validateJourney(JSON.parse(publishedText))) : null;
+      alreadyCurrent = Boolean(publishedContent && canonicalJson(publishedContent) === canonicalJson(cleanContent));
+    } catch {
+      alreadyCurrent = false;
+    }
+    if (alreadyCurrent) {
+      const head = await publisher.getHead();
+      result = {
+        sha: head.commitSha,
+        commitUrl: `https://github.com/${SITE.owner}/${SITE.repo}/commit/${head.commitSha}`,
+        alreadyCurrent: true,
+      };
+    } else {
+      const renderedIndex = renderSite(currentIndex, cleanContent);
+      const files = [
+        { path: 'index.html', content: renderedIndex },
+        { path: 'content/journeys/kanto-6d.json', content: `${JSON.stringify(cleanContent, null, 2)}\n` },
+        ...staged.files,
+      ];
+      result = await publisher.publish(files, message);
+    }
+    const publishedAt = now();
+    const latestDraft = await readDoc(COLLECTIONS.drafts, cleanContent.id);
+    const latestRevision = Number(latestDraft?.revision) || 0;
+    const draftAdvanced = latestRevision !== currentRevision;
+    const revision = draftAdvanced ? latestRevision : currentRevision + 1;
+    const response = {
+      ...result,
+      revision,
+      draftAdvanced,
+      publishedAt,
+      siteUrl: `${SITE.url}?v=${result.sha.slice(0, 7)}`,
+    };
+
+    const completionTasks = [
+      markAssetsPublished(staged.assets, actor, result, publishedAt),
+      writeDoc(COLLECTIONS.publishes, jobId, {
+        status: 'completed',
+        result: response,
+        journeyId: cleanContent.id,
+        commitSha: result.sha,
+        commitUrl: result.commitUrl,
+        message,
+        publishedAt,
+        publishedBy: actor.email,
+        publishedByUid: actor.uid,
+        publishedByName: actor.name,
+      }),
+      audit(actor, 'publish', { journeyId: cleanContent.id, commitSha: result.sha, alreadyCurrent, draftAdvanced }),
+    ];
+    if (!draftAdvanced) {
+      completionTasks.push(writeDoc(COLLECTIONS.drafts, cleanContent.id, {
+        journeyId: cleanContent.id,
+        content: cleanContent,
+        revision,
+        updatedAt: publishedAt,
+        updatedBy: actor.email,
+        updatedByUid: actor.uid,
+        updatedByName: actor.name,
+      }));
+    }
+    await Promise.all(completionTasks);
+    return response;
+  } catch (error) {
+    const latestJob = await readDoc(COLLECTIONS.publishes, jobId).catch(() => null);
+    if (latestJob?.status === 'completed' && latestJob.result) return latestJob.result;
+    await writeDoc(COLLECTIONS.publishes, jobId, {
+      status: 'failed',
+      journeyId: cleanContent.id,
+      message,
+      failedAt: now(),
+      failedBy: actor.email,
+      errorCode: error.code || 'INTERNAL_ERROR',
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 async function history() {
   try {
     const response = await db.collection(COLLECTIONS.publishes).orderBy('publishedAt', 'desc').limit(20).get();
-    return documentList(response);
+    return documentList(response).filter((item) => item.status !== 'running' && item.status !== 'failed');
   } catch (error) {
     if (/not exist|不存在|DATABASE_COLLECTION_NOT_EXIST/i.test(error.message || '')) return [];
     throw error;
@@ -384,6 +513,22 @@ async function inviteStaff(actor, event) {
   return invitation;
 }
 
+async function revokeInvite(actor, event) {
+  const email = normalizeEmail(event.email);
+  const id = emailId(email);
+  const invitation = await readDoc(COLLECTIONS.invites, id);
+  if (!invitation) throw cmsError('INVALID_STAFF', '未找到该邀请邮箱', 404);
+  const updated = {
+    ...invitation,
+    active: false,
+    revokedAt: now(),
+    revokedBy: actor.email,
+  };
+  await writeDoc(COLLECTIONS.invites, id, updated);
+  await audit(actor, 'revoke-invite', { email });
+  return updated;
+}
+
 async function updateStaff(actor, event) {
   const uid = String(event.uid || '').trim();
   if (!uid) throw cmsError('INVALID_STAFF', '工作人员编号不能为空');
@@ -392,10 +537,18 @@ async function updateStaff(actor, event) {
   }
   const staff = await readDoc(COLLECTIONS.staff, uid);
   if (!staff) throw cmsError('INVALID_STAFF', '未找到该工作人员', 404);
+  const nextRole = event.role === 'admin' ? 'admin' : 'editor';
+  const nextActive = event.active !== false;
+  if (staff.role === 'admin' && staff.active !== false && (nextRole !== 'admin' || !nextActive)) {
+    const response = await db.collection(COLLECTIONS.staff).where({ role: 'admin', active: true }).limit(2).get();
+    if (documentList(response).filter((person) => person.uid !== uid).length === 0) {
+      throw cmsError('LAST_ADMIN', '后台必须至少保留一位正常使用的管理员', 409);
+    }
+  }
   const updated = {
     ...staff,
-    role: event.role === 'admin' ? 'admin' : 'editor',
-    active: event.active !== false,
+    role: nextRole,
+    active: nextActive,
     updatedAt: now(),
     updatedBy: actor.email,
   };
@@ -413,6 +566,7 @@ const ACTIONS = {
   history: { role: 'editor', handler: async () => ({ items: await history() }) },
   listStaff: { role: 'admin', handler: async () => listStaff() },
   inviteStaff: { role: 'admin', handler: inviteStaff },
+  revokeInvite: { role: 'admin', handler: revokeInvite },
   updateStaff: { role: 'admin', handler: updateStaff },
 };
 
