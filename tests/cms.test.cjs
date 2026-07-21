@@ -64,3 +64,11 @@ test('构建后的后台不包含常见密钥前缀', () => {
   assert.doesNotMatch(output, /AKID[A-Za-z0-9]{12,}/);
   assert.doesNotMatch(output, /SecretKey\s*[:=]\s*['"][^'"]+/i);
 });
+
+test('后台邮箱登录统一使用 CloudBase 无密码登录流程', () => {
+  const apiSource = fs.readFileSync(path.join(root, 'admin-src', 'lib', 'api.js'), 'utf8');
+  assert.match(apiSource, /await auth\.signInWithEmail\(/);
+  assert.doesNotMatch(apiSource, /auth\.signUp\(/);
+  assert.doesNotMatch(apiSource, /auth\.verify\(/);
+  assert.match(apiSource, /invalid_verification_code/);
+});
