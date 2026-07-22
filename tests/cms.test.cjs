@@ -237,3 +237,18 @@ test('官网包含基础搜索信息与站点地图入口', () => {
   assert.ok(fs.existsSync(path.join(root, 'robots.txt')));
   assert.ok(fs.existsSync(path.join(root, 'sitemap.xml')));
 });
+
+test('官网进入画面保持纵向品牌结构且不增加外部资源', () => {
+  const rendered = renderSite(html, data);
+  const entryStart = rendered.indexOf('<div class="site-entry"');
+  const entryEnd = rendered.indexOf('</div>\n  <header', entryStart);
+  const entry = rendered.slice(entryStart, entryEnd);
+  assert.ok(entryStart > -1);
+  assert.ok(entry.indexOf('site-entry-bird') < entry.indexOf('site-entry-rule'));
+  assert.ok(entry.indexOf('site-entry-rule') < entry.indexOf('site-entry-title'));
+  assert.ok(entry.indexOf('site-entry-title') < entry.indexOf('site-entry-en'));
+  assert.doesNotMatch(entry, /<img|https?:\/\//);
+  assert.match(rendered, /background:#f0f0f1;color:#1a1c1f/);
+  assert.match(rendered, /@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(rendered, /setTimeout\(leave,3200\)/);
+});

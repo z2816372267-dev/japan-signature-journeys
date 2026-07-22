@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="asuka-build" content="2026-07-21-v29-1-airport-metrics" />
+  <meta name="asuka-build" content="2026-07-22-v30-entry-animation" />
   <meta name="description" content="飞鸟旅行 Asuka Travel，以日本四季、地方文化、温泉旅宿与专业动线，设计有节奏、有审美、有温度的日本旅程。" />
   <meta name="theme-color" content="#15241e" />
   <meta property="og:type" content="website" />
@@ -79,10 +79,24 @@
     /* v29.1: keep airport transfer routes and values on clear independent lines. */
     .itinerary .day-metrics .metric-note{display:block;margin-top:5px;color:#59645e;font-size:11px;line-height:1.65}.itinerary .day-metrics .metric-card--routes{min-height:132px}.itinerary .metric-card--routes>strong{margin-bottom:4px}.itinerary .metric-routes{display:grid;gap:3px;font-size:12px;line-height:1.65}.itinerary .metric-route{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px}.itinerary .metric-route-name,.itinerary .metric-route-value{white-space:nowrap}.itinerary .metric-route-value{font-weight:400}
     @media(max-width:540px){.itinerary .day-metrics .metric-card--routes{min-height:0}}
+    /* v30: lightweight entry screen; the existing hero image loads behind it. */
+    .site-entry{position:fixed;z-index:120;inset:0;display:grid;place-items:center;overflow:hidden;overscroll-behavior:contain;touch-action:none;background:#f0f0f1;color:#1a1c1f;cursor:pointer;animation:site-entry-safety .01s 4.2s forwards}.site-entry.is-leaving{animation:site-entry-leave .62s both cubic-bezier(.4,0,.2,1)}.site-entry-brand{position:absolute;left:50%;top:50%;display:grid;justify-items:center;align-items:center;gap:7px;width:190px;text-align:center;letter-spacing:.18em;transform:translate(-50%,-50%)}.site-entry-bird{display:block;width:72px;height:auto;margin-inline:auto;justify-self:center;transform-origin:center;animation:site-entry-bird-in .58s .12s both cubic-bezier(.2,.8,.2,1)}.site-entry-rule{width:86px;height:1px;margin:5px 0 4px;justify-self:center;background:#9f9f9f;transform-origin:center;animation:site-entry-line-grow .55s .42s both ease-out}.site-entry-title,.site-entry-en{display:block;width:100%;justify-self:center;text-align:center;text-indent:.18em;animation:site-entry-copy-in .5s .58s both ease-out}.site-entry-title{font-size:18px;font-weight:400;line-height:1.35}.site-entry-en{color:#9f9f9f;font:10px Arial,sans-serif;letter-spacing:.24em;line-height:1.4}@keyframes site-entry-bird-in{from{opacity:0;transform:translateY(7px) scale(.96)}to{opacity:1;transform:none}}@keyframes site-entry-line-grow{from{opacity:0;transform:scaleX(0)}to{opacity:.72;transform:scaleX(1)}}@keyframes site-entry-copy-in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}@keyframes site-entry-leave{0%{opacity:1;visibility:visible}99%{opacity:0;visibility:visible}100%{opacity:0;visibility:hidden;pointer-events:none}}@keyframes site-entry-safety{to{opacity:0;visibility:hidden;pointer-events:none}}
+    @media(max-width:540px){.site-entry-bird{width:64px}.site-entry-brand{width:180px}.site-entry-title{font-size:17px}}
+    @media(prefers-reduced-motion:reduce){.site-entry{display:none}.site-entry-bird,.site-entry-rule,.site-entry-title,.site-entry-en{animation:none}}
     .overlay{visibility:hidden;pointer-events:none}.overlay.active{visibility:visible;pointer-events:auto}
   </style>
 </head>
 <body>
+  <div class="site-entry" id="siteEntry" aria-hidden="true" title="点击进入官网">
+    <div class="site-entry-brand">
+      <svg class="site-entry-bird" viewBox="0 0 128 88" focusable="false" aria-hidden="true">
+        <path d="M120 41C102 43 88 38 73 28L58 14C59 31 65 42 79 49C59 44 38 45 12 52C33 54 49 59 61 67L53 76L72 64C91 62 106 54 120 41ZM75 52C88 55 100 51 111 44C101 52 88 58 75 58Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" />
+      </svg>
+      <span class="site-entry-rule" aria-hidden="true"></span>
+      <strong class="site-entry-title">飞鸟旅行</strong>
+      <small class="site-entry-en">ASUKA TRAVEL</small>
+    </div>
+  </div>
   <header id="header"><a class="brand" href="#top"><span class="brand-cn">飞鸟旅行</span><span class="brand-en">ASUKA TRAVEL</span></a><nav aria-label="官网导航"><a href="#heart" onclick="openPanel('heart');return false">日本心旅行</a><a href="#custom" onclick="openPanel('custom');return false">个性化定制</a><a href="#themes" onclick="openPanel('themes');return false">主题鉴赏行</a><a href="#about" onclick="openPanel('about');return false">关于飞鸟Asuka</a><a href="#voices" onclick="openPanel('voices');return false">贵宾有话说</a><a href="#contact" onclick="openPanel('contact');return false">联络我们</a><a href="#news" onclick="openPanel('news');return false">旅游资讯</a></nav><button class="consult" onclick="openPanel('search')">Search — 行程日期搜寻</button><button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-controls="mobileNavPanel" aria-expanded="false" aria-label="打开官网菜单">菜单 <span aria-hidden="true">☰</span></button></header>
   <div class="mobile-nav-panel" id="mobileNavPanel" hidden><button type="button" onclick="openMobilePanel('search')">行程日期搜寻</button><button type="button" onclick="openMobilePanel('heart')">日本心旅行</button><button type="button" onclick="openMobilePanel('custom')">个性化定制</button><button type="button" onclick="openMobilePanel('themes')">主题鉴赏行</button><button type="button" onclick="openMobilePanel('about')">关于飞鸟 Asuka</button><button type="button" onclick="openMobilePanel('voices')">贵宾有话说</button><button type="button" onclick="openMobilePanel('contact')">联络我们</button><button type="button" onclick="openMobilePanel('news')">旅游资讯</button></div>
   <main id="top">
@@ -137,6 +151,7 @@
   <section class="overlay" id="contact"><div class="wrap overlay-top"><span class="overlay-brand">飞鸟旅行 · 联络我们</span><button class="close" onclick="closePanel('contact')">关闭 ×</button></div><div class="wrap overlay-hero"><p class="eyebrow">CONTACT ASUKA</p><div class="rule"></div><h2>联络我们</h2><p class="subline">微信、电话、二维码与顾问信息将在确认后接入。</p></div><div class="wrap panel-content"><button class="primary" onclick="closePanel('contact');openPanel('custom')">先填写旅行需求 →</button></div></section>
   <section class="overlay" id="news"><div class="wrap overlay-top"><span class="overlay-brand">飞鸟旅行 · 旅游资讯</span><button class="close" onclick="closePanel('news')">关闭 ×</button></div><div class="wrap overlay-hero"><p class="eyebrow">TRAVEL INFORMATION</p><div class="rule"></div><h2>旅游资讯</h2><p class="subline">日本四季、签证交通、酒店餐食与出行灵感将持续在这里更新。</p></div><div class="wrap panel-content"><div class="news-list"><article class="news"><time>COMING SOON</time><h3>日本四季出行指南与最佳旅行时间</h3><span>→</span></article><article class="news"><time>COMING SOON</time><h3>高端温泉旅宿与地方料理精选</h3><span>→</span></article><article class="news"><time>COMING SOON</time><h3>日本签证、交通与行前实用资讯</h3><span>→</span></article></div></div></section>
   <script>
+    (()=>{const entry=document.getElementById('siteEntry');if(!entry||matchMedia('(prefers-reduced-motion: reduce)').matches){entry?.remove();return}let minimumElapsed=false,heroReady=false,leaving=false;const leave=()=>{if(leaving)return;leaving=true;entry.classList.add('is-leaving');setTimeout(()=>entry.remove(),700)};const revealWhenReady=()=>{if(minimumElapsed&&heroReady)leave()};setTimeout(()=>{minimumElapsed=true;revealWhenReady()},1550);setTimeout(leave,3200);entry.addEventListener('pointerdown',leave,{once:true});addEventListener('keydown',event=>{if(event.key==='Escape'||event.key==='Enter'||event.key===' '){leave()}},{once:true});document.addEventListener('DOMContentLoaded',()=>{const heroImage=document.querySelector('.hero-slide.active img');if(!heroImage){heroReady=true;revealWhenReady();return}const markReady=()=>{heroReady=true;revealWhenReady()};if(heroImage.complete)markReady();else{heroImage.addEventListener('load',markReady,{once:true});heroImage.addEventListener('error',markReady,{once:true})}},{once:true})})();
     const regions=[
       ['01','阪东连线','大阪 · 京都 · 东京','热门经典路线，初游日本必选','kyoto-pagoda','日本古都街町实景',2400,1602],
       ['02','关东地区','东京 · 伊豆 · 镰仓','都市美学，富士花火与轻井泽慢游','oishi-park-fuji','富士山与河口湖实景',2200,1467],
