@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="asuka-build" content="2026-07-23-v31-asuka-selection" />
+  <meta name="asuka-build" content="2026-07-23-v31-1-selection-autoplay" />
   <meta name="description" content="飞鸟旅行 Asuka Travel，以日本四季、地方文化、温泉旅宿与专业动线，设计有节奏、有审美、有温度的日本旅程。" />
   <meta name="theme-color" content="#15241e" />
   <meta property="og:type" content="website" />
@@ -277,19 +277,33 @@
     const observer=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('show')}),{threshold:.13});document.querySelectorAll('.reveal').forEach(x=>observer.observe(x));
     const selectionViewport=document.getElementById('asukaSelectionViewport'),selectionSlides=[...document.querySelectorAll('[data-selection-slide]')],selectionPrev=document.getElementById('asukaSelectionPrev'),selectionNext=document.getElementById('asukaSelectionNext'),selectionStatus=document.getElementById('asukaSelectionStatus');
     if(selectionViewport&&selectionSlides.length){
-      let selectionIndex=0,selectionFrame=0,selectionTarget=null,selectionSettleTimer=0;
+      let selectionIndex=0,selectionFrame=0,selectionTarget=null,selectionSettleTimer=0,selectionAutoTimer=0,selectionAutoDirection=1,selectionInView=false;
       const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-      function setSelectionState(index){selectionIndex=index;selectionSlides.forEach((slide,slideIndex)=>{const active=slideIndex===index;slide.classList.toggle('is-active',active);slide.toggleAttribute('aria-current',active);slide.setAttribute('aria-hidden',String(!active));slide.querySelectorAll('a,button').forEach(control=>control.tabIndex=active?0:-1)});selectionStatus.textContent=selectionSlides[index].getAttribute('aria-label')}
+      const selectionAutoDelay=4500,selectionStage=selectionViewport.closest('.asuka-selection-stage'),selectionPauseReasons=new Set();
+      function setSelectionState(index,announce=false){selectionIndex=index;selectionSlides.forEach((slide,slideIndex)=>{const active=slideIndex===index;slide.classList.toggle('is-active',active);slide.toggleAttribute('aria-current',active);slide.setAttribute('aria-hidden',String(!active));slide.querySelectorAll('a,button').forEach(control=>control.tabIndex=active?0:-1)});selectionStatus.setAttribute('aria-live',announce?'polite':'off');selectionStatus.textContent=selectionSlides[index].getAttribute('aria-label')}
       function finishProgrammaticSelection(){selectionTarget=null;updateSelectionFromScroll()}
       function queueSelectionFinish(delay=140){clearTimeout(selectionSettleTimer);selectionSettleTimer=setTimeout(finishProgrammaticSelection,delay)}
-      function moveSelection(index,behavior=reducedMotion?'auto':'smooth'){const target=(index+selectionSlides.length)%selectionSlides.length;selectionTarget=target;setSelectionState(target);const slide=selectionSlides[target],left=slide.offsetLeft-(selectionViewport.clientWidth-slide.offsetWidth)/2;selectionViewport.scrollTo({left,behavior});queueSelectionFinish(behavior==='auto'?40:420)}
-      function updateSelectionFromScroll(){selectionFrame=0;const center=selectionViewport.scrollLeft+selectionViewport.clientWidth/2;let closest=0,distance=Infinity;selectionSlides.forEach((slide,index)=>{const nextDistance=Math.abs(slide.offsetLeft+slide.offsetWidth/2-center);if(nextDistance<distance){distance=nextDistance;closest=index}});if(closest!==selectionIndex)setSelectionState(closest)}
-      selectionPrev.addEventListener('click',()=>moveSelection(selectionIndex-1));
-      selectionNext.addEventListener('click',()=>moveSelection(selectionIndex+1));
+      function moveSelection(index,behavior=reducedMotion?'auto':'smooth',announce=true){const target=(index+selectionSlides.length)%selectionSlides.length;selectionTarget=target;setSelectionState(target,announce);const slide=selectionSlides[target],left=slide.offsetLeft-(selectionViewport.clientWidth-slide.offsetWidth)/2;selectionViewport.scrollTo({left,behavior});queueSelectionFinish(behavior==='auto'?40:420)}
+      function updateSelectionFromScroll(){selectionFrame=0;const center=selectionViewport.scrollLeft+selectionViewport.clientWidth/2;let closest=0,distance=Infinity;selectionSlides.forEach((slide,index)=>{const nextDistance=Math.abs(slide.offsetLeft+slide.offsetWidth/2-center);if(nextDistance<distance){distance=nextDistance;closest=index}});if(closest!==selectionIndex)setSelectionState(closest,true)}
+      function clearSelectionAuto(){clearTimeout(selectionAutoTimer);selectionAutoTimer=0}
+      function scheduleSelectionAuto(delay=selectionAutoDelay){clearSelectionAuto();if(reducedMotion||!selectionInView||selectionPauseReasons.size||document.hidden||selectionSlides.length<2)return;selectionAutoTimer=setTimeout(()=>{selectionAutoTimer=0;let next=selectionIndex+selectionAutoDirection;if(next>=selectionSlides.length){selectionAutoDirection=-1;next=selectionSlides.length-2}else if(next<0){selectionAutoDirection=1;next=1}moveSelection(next,reducedMotion?'auto':'smooth',false);scheduleSelectionAuto()},delay)}
+      function pauseSelectionAuto(reason){selectionPauseReasons.add(reason);clearSelectionAuto()}
+      function resumeSelectionAuto(reason,delay=2200){selectionPauseReasons.delete(reason);if(!selectionPauseReasons.size)scheduleSelectionAuto(delay)}
+      function moveSelectionManually(index){moveSelection(index);scheduleSelectionAuto(selectionAutoDelay)}
+      selectionPrev.addEventListener('click',()=>moveSelectionManually(selectionIndex-1));
+      selectionNext.addEventListener('click',()=>moveSelectionManually(selectionIndex+1));
       selectionViewport.addEventListener('scroll',()=>{if(selectionTarget!==null){queueSelectionFinish();return}if(!selectionFrame)selectionFrame=requestAnimationFrame(updateSelectionFromScroll)},{passive:true});
-      selectionViewport.addEventListener('keydown',event=>{if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();moveSelection(selectionIndex+(event.key==='ArrowRight'?1:-1))});
-      addEventListener('resize',()=>requestAnimationFrame(()=>moveSelection(selectionIndex,'auto')));
-      setSelectionState(0);
+      selectionViewport.addEventListener('keydown',event=>{if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();moveSelectionManually(selectionIndex+(event.key==='ArrowRight'?1:-1))});
+      selectionViewport.addEventListener('pointerdown',()=>pauseSelectionAuto('pointer'),{passive:true});
+      selectionViewport.addEventListener('pointerup',()=>resumeSelectionAuto('pointer'),{passive:true});
+      selectionViewport.addEventListener('pointercancel',()=>resumeSelectionAuto('pointer'),{passive:true});
+      selectionStage.addEventListener('focusin',()=>pauseSelectionAuto('focus'));
+      selectionStage.addEventListener('focusout',event=>{if(!selectionStage.contains(event.relatedTarget))resumeSelectionAuto('focus')});
+      if(matchMedia('(hover: hover)').matches){selectionStage.addEventListener('pointerenter',()=>pauseSelectionAuto('hover'));selectionStage.addEventListener('pointerleave',()=>resumeSelectionAuto('hover'))}
+      new IntersectionObserver(([entry])=>{selectionInView=entry.isIntersecting;if(selectionInView)scheduleSelectionAuto();else clearSelectionAuto()},{threshold:.35}).observe(selectionViewport);
+      document.addEventListener('visibilitychange',()=>{if(document.hidden)clearSelectionAuto();else scheduleSelectionAuto(1800)});
+      addEventListener('resize',()=>requestAnimationFrame(()=>moveSelection(selectionIndex,'auto',false)));
+      setSelectionState(0,false);
     }
     const children=document.getElementById('children'),ages=document.getElementById('childrenAges'),ageInputs=document.getElementById('ageInputs');children.addEventListener('change',()=>{const n=Number(children.value);ages.classList.toggle('active',n>0);const options=['请选择年龄',...Array.from({length:18},(_,i)=>`${i}岁`)];ageInputs.innerHTML=Array.from({length:n},(_,i)=>`<select required aria-label="儿童${i+1}年龄">${options.map((o,j)=>`<option value="${j?o:''}" ${j?'':'selected disabled'}>${o}</option>`).join('')}</select>`).join('')});
     document.getElementById('travelForm').addEventListener('submit',e=>{e.preventDefault();const start=e.target.start.value,end=e.target.end.value;if(new Date(end)<new Date(start)){alert('返程日期不能早于出发日期。');return}alert('已完成表单校验。后续接入飞鸟旅行的客服渠道后，客户提交的信息将直接发送给旅行顾问。')});

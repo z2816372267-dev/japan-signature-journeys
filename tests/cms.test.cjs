@@ -272,7 +272,7 @@ test('飞鸟之选使用本地响应式图片并保留中央主图与两侧预�
   assert.match(rendered, /@media\(max-width:760px\)\{\.asuka-selection/);
 });
 
-test('飞鸟之选支持按钮、键盘与手机原生滑动并通过CMS发布保留', () => {
+test('飞鸟之选支持自动轮播、按钮、键盘与手机原生滑动并通过CMS发布保留', () => {
   const rendered = renderSite(html, data);
 
   assert.match(rendered, /id="asukaSelectionPrev"/);
@@ -281,5 +281,12 @@ test('飞鸟之选支持按钮、键盘与手机原生滑动并通过CMS发布�
   assert.match(rendered, /event\.key!=='ArrowLeft'&&event\.key!=='ArrowRight'/);
   assert.match(rendered, /selectionViewport\.scrollTo\(\{left,behavior\}\)/);
   assert.match(rendered, /overscroll-behavior-x:contain/);
-  assert.match(rendered, /2026-07-23-v31-asuka-selection/);
+  assert.match(rendered, /selectionAutoDelay=4500/);
+  assert.match(rendered, /scheduleSelectionAuto/);
+  assert.match(rendered, /new IntersectionObserver\(\(\[entry\]\)=>/);
+  assert.match(rendered, /pauseSelectionAuto\('pointer'\)/);
+  assert.match(rendered, /pauseSelectionAuto\('hover'\)/);
+  assert.match(rendered, /document\.addEventListener\('visibilitychange'/);
+  assert.match(rendered, /reducedMotion\|\|!selectionInView/);
+  assert.match(rendered, /2026-07-23-v31-1-selection-autoplay/);
 });
