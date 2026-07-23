@@ -252,3 +252,34 @@ test('官网进入画面保持纵向品牌结构且不增加外部资源', () =>
   assert.match(rendered, /@media\(prefers-reduced-motion:reduce\)/);
   assert.match(rendered, /setTimeout\(leave,3200\)/);
 });
+
+test('飞鸟之选使用本地响应式图片并保留中央主图与两侧预告结构', () => {
+  const rendered = renderSite(html, data);
+  const start = rendered.indexOf('<section class="asuka-selection');
+  const end = rendered.indexOf('<section class="entry section"', start);
+  const selection = rendered.slice(start, end);
+
+  assert.ok(start > -1);
+  assert.equal((selection.match(/data-selection-slide/g) || []).length, 6);
+  assert.equal((selection.match(/class="asuka-selection-slide is-active"/g) || []).length, 1);
+  assert.equal((selection.match(/loading="lazy"/g) || []).length, 6);
+  assert.equal((selection.match(/-v22-480\.webp/g) || []).length, 6);
+  assert.equal((selection.match(/-v22-960\.webp/g) || []).length, 6);
+  assert.equal((selection.match(/-v22-1600\.webp/g) || []).length, 6);
+  assert.doesNotMatch(selection, /https?:\/\//);
+  assert.match(rendered, /scroll-snap-type:x mandatory/);
+  assert.match(rendered, /\.asuka-selection-slide\.is-active\{opacity:1;filter:none\}/);
+  assert.match(rendered, /@media\(max-width:760px\)\{\.asuka-selection/);
+});
+
+test('飞鸟之选支持按钮、键盘与手机原生滑动并通过CMS发布保留', () => {
+  const rendered = renderSite(html, data);
+
+  assert.match(rendered, /id="asukaSelectionPrev"/);
+  assert.match(rendered, /id="asukaSelectionNext"/);
+  assert.match(rendered, /id="asukaSelectionStatus" aria-live="polite"/);
+  assert.match(rendered, /event\.key!=='ArrowLeft'&&event\.key!=='ArrowRight'/);
+  assert.match(rendered, /selectionViewport\.scrollTo\(\{left,behavior\}\)/);
+  assert.match(rendered, /overscroll-behavior-x:contain/);
+  assert.match(rendered, /2026-07-23-v31-asuka-selection/);
+});

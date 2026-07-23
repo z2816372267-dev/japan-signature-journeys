@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="asuka-build" content="2026-07-22-v30-entry-animation" />
+  <meta name="asuka-build" content="2026-07-23-v31-asuka-selection" />
   <meta name="description" content="飞鸟旅行 Asuka Travel，以日本四季、地方文化、温泉旅宿与专业动线，设计有节奏、有审美、有温度的日本旅程。" />
   <meta name="theme-color" content="#15241e" />
   <meta property="og:type" content="website" />
@@ -83,6 +83,11 @@
     .site-entry{position:fixed;z-index:120;inset:0;display:grid;place-items:center;overflow:hidden;overscroll-behavior:contain;touch-action:none;background:#f0f0f1;color:#1a1c1f;cursor:pointer;animation:site-entry-safety .01s 4.2s forwards}.site-entry.is-leaving{animation:site-entry-leave .62s both cubic-bezier(.4,0,.2,1)}.site-entry-brand{position:absolute;left:50%;top:50%;display:grid;justify-items:center;align-items:center;gap:7px;width:190px;text-align:center;letter-spacing:.18em;transform:translate(-50%,-50%)}.site-entry-bird{display:block;width:72px;height:auto;margin-inline:auto;justify-self:center;transform-origin:center;animation:site-entry-bird-in .58s .12s both cubic-bezier(.2,.8,.2,1)}.site-entry-rule{width:86px;height:1px;margin:5px 0 4px;justify-self:center;background:#9f9f9f;transform-origin:center;animation:site-entry-line-grow .55s .42s both ease-out}.site-entry-title,.site-entry-en{display:block;width:100%;justify-self:center;text-align:center;text-indent:.18em;animation:site-entry-copy-in .5s .58s both ease-out}.site-entry-title{font-size:18px;font-weight:400;line-height:1.35}.site-entry-en{color:#9f9f9f;font:10px Arial,sans-serif;letter-spacing:.24em;line-height:1.4}@keyframes site-entry-bird-in{from{opacity:0;transform:translateY(7px) scale(.96)}to{opacity:1;transform:none}}@keyframes site-entry-line-grow{from{opacity:0;transform:scaleX(0)}to{opacity:.72;transform:scaleX(1)}}@keyframes site-entry-copy-in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}@keyframes site-entry-leave{0%{opacity:1;visibility:visible}99%{opacity:0;visibility:visible}100%{opacity:0;visibility:hidden;pointer-events:none}}@keyframes site-entry-safety{to{opacity:0;visibility:hidden;pointer-events:none}}
     @media(max-width:540px){.site-entry-bird{width:64px}.site-entry-brand{width:180px}.site-entry-title{font-size:17px}}
     @media(prefers-reduced-motion:reduce){.site-entry{display:none}.site-entry-bird,.site-entry-rule,.site-entry-title,.site-entry-en{animation:none}}
+    /* v31: editorial journey carousel inspired by Japanese travel magazines. */
+    .asuka-selection{overflow:hidden;background:#fbfaf7}.asuka-selection-head{text-align:center;padding-bottom:58px}.asuka-selection-head .rule{margin-left:auto;margin-right:auto}.asuka-selection-head .section-title{font-size:clamp(39px,4vw,57px)}.asuka-selection-head .subline{max-width:610px;margin:18px auto 0}.asuka-selection-stage{position:relative}.asuka-selection-viewport{width:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:max(21px,calc((100vw - clamp(720px,66vw,1040px))/2));scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;outline:none}.asuka-selection-viewport::-webkit-scrollbar{display:none}.asuka-selection-track{display:flex;gap:clamp(15px,2.2vw,34px);width:max-content;padding:0 max(21px,calc((100vw - clamp(720px,66vw,1040px))/2)) 10px}.asuka-selection-slide{flex:0 0 clamp(720px,66vw,1040px);scroll-snap-align:center;scroll-snap-stop:always;opacity:.24;filter:saturate(.68);transition:opacity .52s ease,filter .52s ease}.asuka-selection-slide.is-active{opacity:1;filter:none}.asuka-selection-visual{position:relative;aspect-ratio:16/9}.asuka-selection-media{display:block;width:100%;height:100%;overflow:hidden;border-radius:7px;background:#d8d1c5;box-shadow:0 24px 55px #17372d18}.asuka-selection-media img{display:block;width:100%;height:100%;object-fit:cover;transform:scale(1.005);transition:transform 1.1s ease}.asuka-selection-slide.is-active .asuka-selection-media img{transform:none}.asuka-selection-place{position:absolute;top:25px;left:27px;display:inline-flex;align-items:center;gap:12px;padding:9px 12px;color:white;background:#10231ca8;backdrop-filter:blur(8px);font:9px Arial,sans-serif;letter-spacing:.2em}.asuka-selection-place:before{content:"";width:24px;height:1px;background:#d9c39f}.asuka-selection-count{position:absolute;right:-22px;bottom:-26px;z-index:2;width:92px;height:76px;display:grid;grid-template-columns:1fr 20px 1fr;align-items:center;justify-items:center;border-radius:7px 0 7px 7px;background:#fbfaf7;color:var(--gold);box-shadow:0 15px 28px #17372d12;opacity:0;transform:translateY(8px);transition:.35s}.asuka-selection-slide.is-active .asuka-selection-count{opacity:1;transform:none}.asuka-selection-count strong,.asuka-selection-count small{font:14px Georgia,serif;font-weight:400}.asuka-selection-count span{width:1px;height:32px;background:#b9a98f;transform:rotate(38deg)}.asuka-selection-caption{display:grid;grid-template-columns:minmax(240px,.72fr) 1.35fr;gap:45px;min-height:154px;padding:48px 0 0;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .35s .12s,transform .35s .12s}.asuka-selection-slide.is-active .asuka-selection-caption{opacity:1;visibility:visible;transform:none}.asuka-selection-title{padding-right:40px;border-right:1px solid var(--line)}.asuka-selection-title small{font:9px Arial,sans-serif;color:var(--gold);letter-spacing:.2em}.asuka-selection-title h3{margin:11px 0 0;font-size:25px;font-weight:400;line-height:1.55;letter-spacing:.09em}.asuka-selection-copy{padding-top:1px}.asuka-selection-copy p{margin:0;color:#5d6761;font-size:14px;line-height:2.05;letter-spacing:.055em}.asuka-selection-link{display:inline-flex;align-items:center;gap:14px;margin-top:18px;padding-bottom:7px;border-bottom:1px solid #a9906770;color:var(--ink);font-size:11px;letter-spacing:.1em}.asuka-selection-link span{color:var(--gold);transition:transform .25s}.asuka-selection-link:hover span{transform:translateX(5px)}.asuka-selection-control{position:absolute;z-index:4;top:min(18.56vw,293px);width:52px;height:52px;margin-top:-26px;display:grid;place-items:center;border:1px solid #a9906790;border-radius:50%;background:#fbfaf7e8;color:var(--ink);box-shadow:0 10px 25px #17372d14;backdrop-filter:blur(8px);cursor:pointer;font:18px Arial,sans-serif;transition:.25s}.asuka-selection-control:hover{background:var(--ink);border-color:var(--ink);color:white}.asuka-selection-control--prev{left:max(18px,calc((100vw - clamp(720px,66vw,1040px))/2 - 27px))}.asuka-selection-control--next{right:max(18px,calc((100vw - clamp(720px,66vw,1040px))/2 - 27px))}.asuka-selection-status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+    @media(max-width:1080px){.asuka-selection-slide{flex-basis:clamp(680px,70vw,760px)}.asuka-selection-viewport{scroll-padding-inline:max(21px,calc((100vw - clamp(680px,70vw,760px))/2))}.asuka-selection-track{padding-left:max(21px,calc((100vw - clamp(680px,70vw,760px))/2));padding-right:max(21px,calc((100vw - clamp(680px,70vw,760px))/2))}.asuka-selection-control{top:clamp(191px,19.69vw,214px)}.asuka-selection-control--prev{left:max(8px,calc((100vw - clamp(680px,70vw,760px))/2 - 26px))}.asuka-selection-control--next{right:max(8px,calc((100vw - clamp(680px,70vw,760px))/2 - 26px))}}
+    @media(max-width:760px){.asuka-selection{padding-top:82px;padding-bottom:76px}.asuka-selection-head{text-align:left;padding-bottom:36px}.asuka-selection-head .rule{margin-left:0;margin-right:0}.asuka-selection-head .section-title{font-size:36px}.asuka-selection-head .subline{margin:14px 0 0;font-size:12px}.asuka-selection-viewport{scroll-padding-inline:21px}.asuka-selection-track{gap:12px;padding-left:21px;padding-right:21px}.asuka-selection-slide{flex-basis:calc(100vw - 42px)}.asuka-selection-media{border-radius:5px}.asuka-selection-place{top:16px;left:16px;padding:8px 10px;font-size:8px}.asuka-selection-count{right:10px;bottom:-22px;width:76px;height:61px}.asuka-selection-count strong,.asuka-selection-count small{font-size:12px}.asuka-selection-count span{height:25px}.asuka-selection-caption{grid-template-columns:1fr;gap:17px;min-height:250px;padding-top:38px}.asuka-selection-title{padding:0 86px 16px 0;border-right:0;border-bottom:1px solid var(--line)}.asuka-selection-title h3{font-size:22px}.asuka-selection-copy p{font-size:12px;line-height:1.9}.asuka-selection-link{margin-top:14px;font-size:10px}.asuka-selection-control{top:28vw;width:44px;height:44px;margin-top:-22px;background:#fbfaf7df;font-size:16px}.asuka-selection-control--prev{left:8px}.asuka-selection-control--next{right:8px}}
+    @media(prefers-reduced-motion:reduce){.asuka-selection-viewport{scroll-behavior:auto}.asuka-selection-slide,.asuka-selection-media img,.asuka-selection-caption,.asuka-selection-count{transition:none}}
     .overlay{visibility:hidden;pointer-events:none}.overlay.active{visibility:visible;pointer-events:auto}
   </style>
 </head>
@@ -124,6 +129,107 @@
       <div class="hero-inner"><p class="eyebrow" style="color:#eadbc1">ASUKA TRAVEL · JAPAN WITH HEART</p><h1>把日本，<br>过成一段自己的时光</h1><p class="hero-copy">不止抵达风景，更走进季节、地方与人的温度。<br>飞鸟旅行，为你设计值得细细回味的日本旅程。</p><div class="hero-actions"><button class="primary" onclick="openPanel('heart')">探索日本心旅行</button><a class="link-light" href="#entry">三种旅行方式 ↓</a></div></div><p class="hero-side">SEASONAL · INTIMATE · JAPAN</p><p class="credit">实景摄影 · 日本传统街町｜图片已存入网站本地目录</p>
     </section>
     <section class="wrap section intro reveal"><div><p class="eyebrow">OUR WAY OF TRAVEL</p><div class="rule"></div><h2 class="section-title">不是去过日本，<br>而是真正读懂日本</h2></div><div class="intro-copy"><p class="lead">飞鸟旅行相信，真正动人的旅程，来自正确季节里恰到好处的停留。</p><p>我们以日本四季为线索，用专业动线、地方美食、温泉旅宿与文化体验，组织每一段有节奏、有审美、也有温度的旅行。</p></div></section>
+    <section class="asuka-selection section" id="asuka-selection" aria-labelledby="asuka-selection-title">
+      <div class="wrap asuka-selection-head reveal">
+        <p class="eyebrow">ASUKA SELECTION</p>
+        <div class="rule"></div>
+        <h2 class="section-title" id="asuka-selection-title">飞鸟之选</h2>
+        <p class="subline">从正在打磨的完整行程，到值得收藏的季节方向；先从一幅风景，找到下一次出发。</p>
+      </div>
+      <div class="asuka-selection-stage">
+        <button class="asuka-selection-control asuka-selection-control--prev" id="asukaSelectionPrev" type="button" aria-label="查看上一项飞鸟之选" aria-controls="asukaSelectionViewport">←</button>
+        <div class="asuka-selection-viewport" id="asukaSelectionViewport" tabindex="0" role="region" aria-roledescription="轮播" aria-label="飞鸟精选旅行灵感">
+          <div class="asuka-selection-track">
+            <article class="asuka-selection-slide is-active" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第1项，共6项：关东山海相逢" aria-current="true">
+              <div class="asuka-selection-visual">
+                <picture class="asuka-selection-media">
+                  <source type="image/webp" srcset="images/responsive/oishi-park-fuji-v22-480.webp 480w, images/responsive/oishi-park-fuji-v22-960.webp 960w, images/responsive/oishi-park-fuji-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 66vw" />
+                  <img src="images/responsive/oishi-park-fuji-v22-960.jpg" width="2200" height="1467" alt="富士山与河口湖大石公园实景" loading="lazy" decoding="async" />
+                </picture>
+                <span class="asuka-selection-place">KANTO · 关东</span>
+                <span class="asuka-selection-count" aria-hidden="true"><strong>01</strong><span></span><small>06</small></span>
+              </div>
+              <div class="asuka-selection-caption">
+                <div class="asuka-selection-title"><small>SIGNATURE JOURNEY · 6 DAYS</small><h3>关东 · 山海相逢</h3></div>
+                <div class="asuka-selection-copy"><p>从富士湖畔、箱根山水到伊豆海岸与镰仓街町，让山、海、温泉与城市在六天里自然衔接。</p><a class="asuka-selection-link" href="#kantoJourney" onclick="openKantoJourney();return false">查看关东山海6日 <span aria-hidden="true">→</span></a></div>
+              </div>
+            </article>
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第2项，共6项：关西古都日常">
+              <div class="asuka-selection-visual">
+                <picture class="asuka-selection-media">
+                  <source type="image/webp" srcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 66vw" />
+                  <img src="images/responsive/japan-traditional-street-v22-960.jpg" width="2400" height="1655" alt="日本古都传统街町实景" loading="lazy" decoding="async" />
+                </picture>
+                <span class="asuka-selection-place">KANSAI · 关西</span>
+                <span class="asuka-selection-count" aria-hidden="true"><strong>02</strong><span></span><small>06</small></span>
+              </div>
+              <div class="asuka-selection-caption">
+                <div class="asuka-selection-title"><small>SEASONAL INSPIRATION</small><h3>关西 · 古都日常</h3></div>
+                <div class="asuka-selection-copy"><p>在京都、大阪与奈良之间放慢脚步，让寺社、街町、庭园与地方滋味回到日常可感的尺度。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
+              </div>
+            </article>
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第3项，共6项：东北雪国慢行">
+              <div class="asuka-selection-visual">
+                <picture class="asuka-selection-media">
+                  <source type="image/webp" srcset="images/responsive/tohoku-snow-v22-480.webp 480w, images/responsive/tohoku-snow-v22-960.webp 960w, images/responsive/tohoku-snow-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 66vw" />
+                  <img src="images/responsive/tohoku-snow-v22-960.jpg" width="2400" height="1600" alt="日本东北雪国聚落实景" loading="lazy" decoding="async" />
+                </picture>
+                <span class="asuka-selection-place">TOHOKU · 东北</span>
+                <span class="asuka-selection-count" aria-hidden="true"><strong>03</strong><span></span><small>06</small></span>
+              </div>
+              <div class="asuka-selection-caption">
+                <div class="asuka-selection-title"><small>WINTER INSPIRATION</small><h3>东北 · 雪国慢行</h3></div>
+                <div class="asuka-selection-copy"><p>循着山形、青森与仙台的冬日景色，把雪见温泉、山间聚落与东北风土编成一段从容慢旅。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
+              </div>
+            </article>
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第4项，共6项：四国海岛微光">
+              <div class="asuka-selection-visual">
+                <picture class="asuka-selection-media">
+                  <source type="image/webp" srcset="images/responsive/setouchi-sea-v22-480.webp 480w, images/responsive/setouchi-sea-v22-960.webp 960w, images/responsive/setouchi-sea-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 66vw" />
+                  <img src="images/responsive/setouchi-sea-v22-960.jpg" width="2400" height="1597" alt="濑户内海岛屿与海面实景" loading="lazy" decoding="async" />
+                </picture>
+                <span class="asuka-selection-place">SHIKOKU · 四国</span>
+                <span class="asuka-selection-count" aria-hidden="true"><strong>04</strong><span></span><small>06</small></span>
+              </div>
+              <div class="asuka-selection-caption">
+                <div class="asuka-selection-title"><small>ISLAND INSPIRATION</small><h3>四国 · 海岛微光</h3></div>
+                <div class="asuka-selection-copy"><p>沿着濑户内海的光线串联香川、爱媛与海岛，在艺术、温泉和海风之间留出真正的停顿。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
+              </div>
+            </article>
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第5项，共6项：九州温泉南行">
+              <div class="asuka-selection-visual">
+                <picture class="asuka-selection-media">
+                  <source type="image/webp" srcset="images/responsive/kyushu-city-v22-480.webp 480w, images/responsive/kyushu-city-v22-960.webp 960w, images/responsive/kyushu-city-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 66vw" />
+                  <img src="images/responsive/kyushu-city-v22-960.jpg" width="2400" height="1600" alt="日本九州城市与山海实景" loading="lazy" decoding="async" />
+                </picture>
+                <span class="asuka-selection-place">KYUSHU · 九州</span>
+                <span class="asuka-selection-count" aria-hidden="true"><strong>05</strong><span></span><small>06</small></span>
+              </div>
+              <div class="asuka-selection-caption">
+                <div class="asuka-selection-title"><small>ONSEN INSPIRATION</small><h3>九州 · 温泉南行</h3></div>
+                <div class="asuka-selection-copy"><p>从福冈向南，在火山地貌、温泉乡与地方料理之间，感受九州热烈而松弛的旅行节奏。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
+              </div>
+            </article>
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第6项，共6项：北海道粉雪北境">
+              <div class="asuka-selection-visual">
+                <picture class="asuka-selection-media">
+                  <source type="image/webp" srcset="images/responsive/hokkaido-snow-v22-480.webp 480w, images/responsive/hokkaido-snow-v22-960.webp 960w, images/responsive/hokkaido-snow-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 66vw" />
+                  <img src="images/responsive/hokkaido-snow-v22-960.jpg" width="2400" height="1622" alt="北海道粉雪与冬日树林实景" loading="lazy" decoding="async" />
+                </picture>
+                <span class="asuka-selection-place">HOKKAIDO · 北海道</span>
+                <span class="asuka-selection-count" aria-hidden="true"><strong>06</strong><span></span><small>06</small></span>
+              </div>
+              <div class="asuka-selection-caption">
+                <div class="asuka-selection-title"><small>SNOW INSPIRATION</small><h3>北海道 · 粉雪北境</h3></div>
+                <div class="asuka-selection-copy"><p>在札幌、函馆与道央雪原之间，收藏北国冬色、温泉暖意与安静辽阔的自然时刻。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <button class="asuka-selection-control asuka-selection-control--next" id="asukaSelectionNext" type="button" aria-label="查看下一项飞鸟之选" aria-controls="asukaSelectionViewport">→</button>
+        <p class="asuka-selection-status" id="asukaSelectionStatus" aria-live="polite">第1项，共6项：关东山海相逢</p>
+      </div>
+    </section>
     <section class="entry section" id="entry">
       <div class="wrap entry-head reveal"><div><p class="eyebrow">THREE WAYS TO JAPAN</p><div class="rule"></div><h2 class="section-title">选择你的出发方式</h2></div><p class="subline">同一个日本，不止一种抵达方式。</p></div>
       <div class="wrap entry-grid">
@@ -169,6 +275,22 @@
     document.querySelectorAll('.overlay').forEach(panel=>{panel.inert=true;panel.setAttribute('aria-hidden','true')});function openPanel(id){closeMobileNav();const panel=document.getElementById(id);panel._returnFocus=document.activeElement;panel.inert=false;panel.setAttribute('aria-hidden','false');panel.classList.add('active');document.body.classList.add('lock');setTimeout(()=>panel.querySelector('button,a,input,select,textarea')?.focus({preventScroll:true}),80)}function closePanel(id){const panel=document.getElementById(id);panel.classList.remove('active');panel.inert=true;panel.setAttribute('aria-hidden','true');panel._returnFocus?.focus?.({preventScroll:true});if(!document.querySelector('.overlay.active'))document.body.classList.remove('lock')}function openChildPanel(childId,parentId){const parent=document.getElementById(parentId);if(!parent.classList.contains('active'))openPanel(parentId);parent.inert=true;parent.setAttribute('aria-hidden','true');const child=document.getElementById(childId);child.dataset.parentPanel=parentId;child.scrollTop=0;openPanel(childId)}function returnToParent(childId,parentId){const child=document.getElementById(childId),parent=document.getElementById(parentId);child.classList.remove('active');child.inert=true;child.setAttribute('aria-hidden','true');parent.classList.add('active');parent.inert=false;parent.setAttribute('aria-hidden','false');document.body.classList.add('lock');child._returnFocus?.focus?.({preventScroll:true})}function toggleDay(button){button.closest('.day').classList.toggle('open')}addEventListener('scroll',()=>document.getElementById('header').classList.toggle('scrolled',scrollY>40));addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(!mobileNavPanel.hidden){closeMobileNav();mobileNavToggle.focus();return}const panels=[...document.querySelectorAll('.overlay.active')];const panel=panels.at(-1);if(!panel)return;const parentId=panel.dataset.parentPanel;if(parentId&&document.getElementById(parentId)?.classList.contains('active'))returnToParent(panel.id,parentId);else closePanel(panel.id)});
     function openKantoJourney(){openChildPanel('kantoJourney','kantoProducts')}function startKantoJourneyInquiry(){openChildPanel('kantoInquiry','kantoJourney');setTimeout(()=>document.getElementById('productDeparture').focus(),350)}
     const observer=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('show')}),{threshold:.13});document.querySelectorAll('.reveal').forEach(x=>observer.observe(x));
+    const selectionViewport=document.getElementById('asukaSelectionViewport'),selectionSlides=[...document.querySelectorAll('[data-selection-slide]')],selectionPrev=document.getElementById('asukaSelectionPrev'),selectionNext=document.getElementById('asukaSelectionNext'),selectionStatus=document.getElementById('asukaSelectionStatus');
+    if(selectionViewport&&selectionSlides.length){
+      let selectionIndex=0,selectionFrame=0,selectionTarget=null,selectionSettleTimer=0;
+      const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function setSelectionState(index){selectionIndex=index;selectionSlides.forEach((slide,slideIndex)=>{const active=slideIndex===index;slide.classList.toggle('is-active',active);slide.toggleAttribute('aria-current',active);slide.setAttribute('aria-hidden',String(!active));slide.querySelectorAll('a,button').forEach(control=>control.tabIndex=active?0:-1)});selectionStatus.textContent=selectionSlides[index].getAttribute('aria-label')}
+      function finishProgrammaticSelection(){selectionTarget=null;updateSelectionFromScroll()}
+      function queueSelectionFinish(delay=140){clearTimeout(selectionSettleTimer);selectionSettleTimer=setTimeout(finishProgrammaticSelection,delay)}
+      function moveSelection(index,behavior=reducedMotion?'auto':'smooth'){const target=(index+selectionSlides.length)%selectionSlides.length;selectionTarget=target;setSelectionState(target);const slide=selectionSlides[target],left=slide.offsetLeft-(selectionViewport.clientWidth-slide.offsetWidth)/2;selectionViewport.scrollTo({left,behavior});queueSelectionFinish(behavior==='auto'?40:420)}
+      function updateSelectionFromScroll(){selectionFrame=0;const center=selectionViewport.scrollLeft+selectionViewport.clientWidth/2;let closest=0,distance=Infinity;selectionSlides.forEach((slide,index)=>{const nextDistance=Math.abs(slide.offsetLeft+slide.offsetWidth/2-center);if(nextDistance<distance){distance=nextDistance;closest=index}});if(closest!==selectionIndex)setSelectionState(closest)}
+      selectionPrev.addEventListener('click',()=>moveSelection(selectionIndex-1));
+      selectionNext.addEventListener('click',()=>moveSelection(selectionIndex+1));
+      selectionViewport.addEventListener('scroll',()=>{if(selectionTarget!==null){queueSelectionFinish();return}if(!selectionFrame)selectionFrame=requestAnimationFrame(updateSelectionFromScroll)},{passive:true});
+      selectionViewport.addEventListener('keydown',event=>{if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();moveSelection(selectionIndex+(event.key==='ArrowRight'?1:-1))});
+      addEventListener('resize',()=>requestAnimationFrame(()=>moveSelection(selectionIndex,'auto')));
+      setSelectionState(0);
+    }
     const children=document.getElementById('children'),ages=document.getElementById('childrenAges'),ageInputs=document.getElementById('ageInputs');children.addEventListener('change',()=>{const n=Number(children.value);ages.classList.toggle('active',n>0);const options=['请选择年龄',...Array.from({length:18},(_,i)=>`${i}岁`)];ageInputs.innerHTML=Array.from({length:n},(_,i)=>`<select required aria-label="儿童${i+1}年龄">${options.map((o,j)=>`<option value="${j?o:''}" ${j?'':'selected disabled'}>${o}</option>`).join('')}</select>`).join('')});
     document.getElementById('travelForm').addEventListener('submit',e=>{e.preventDefault();const start=e.target.start.value,end=e.target.end.value;if(new Date(end)<new Date(start)){alert('返程日期不能早于出发日期。');return}alert('已完成表单校验。后续接入飞鸟旅行的客服渠道后，客户提交的信息将直接发送给旅行顾问。')});
     document.addEventListener('DOMContentLoaded',()=>{
