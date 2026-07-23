@@ -290,7 +290,6 @@ test('飞鸟之选支持自动轮播、按钮、键盘与手机原生滑动并�
   assert.match(rendered, /document\.addEventListener\('visibilitychange'/);
   assert.match(rendered, /\{threshold:\.12\}/);
   assert.doesNotMatch(rendered, /reducedMotion\|\|!selectionInView/);
-  assert.match(rendered, /2026-07-23-v31-2-density-autoplay/);
 });
 
 test('首页内容板块收紧比例并为轮播图片提供精确响应式尺寸', () => {
@@ -302,4 +301,15 @@ test('首页内容板块收紧比例并为轮播图片提供精确响应式尺�
   assert.match(rendered, /\.entry-card\{min-height:430px;padding:30px\}/);
   assert.match(rendered, /@media\(max-width:760px\)\{\.intro\.section\{padding-top:58px;padding-bottom:60px\}/);
   assert.equal((rendered.match(/\(max-width:1607px\) 56vw, 900px/g) || []).length, 6);
+});
+
+test('封面行动区使用低干扰深色按钮并显示探索别样日本', () => {
+  const rendered = renderSite(html, data);
+
+  assert.match(rendered, /<button class="primary hero-primary"[^>]*><span>探索别样日本<\/span>/);
+  assert.doesNotMatch(rendered, />探索日本心旅行</);
+  assert.match(rendered, /class="link-light hero-secondary"/);
+  assert.match(rendered, /\.hero-primary\{[^}]*background:#10231cba[^}]*backdrop-filter:blur\(7px\)/);
+  assert.match(rendered, /\.hero-primary:focus-visible,\.hero-secondary:focus-visible/);
+  assert.match(rendered, /2026-07-23-v31-3-hero-cta/);
 });
