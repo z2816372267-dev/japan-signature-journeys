@@ -29,3 +29,4 @@ npm run build
 - 浏览器端只包含公开的 CloudBase 环境 ID，不包含 SecretId、SecretKey 或 GitHub Token。
 - 工作人员使用独立邮箱登录；编辑与管理员权限分开。
 - 官网访客不依赖 CloudBase 数据库或云函数，后台故障不会拖慢官网。
+当前官网版本：V31.2
