@@ -285,8 +285,21 @@ test('飞鸟之选支持自动轮播、按钮、键盘与手机原生滑动并�
   assert.match(rendered, /scheduleSelectionAuto/);
   assert.match(rendered, /new IntersectionObserver\(\(\[entry\]\)=>/);
   assert.match(rendered, /pauseSelectionAuto\('pointer'\)/);
-  assert.match(rendered, /pauseSelectionAuto\('hover'\)/);
+  assert.match(rendered, /lostpointercapture/);
+  assert.doesNotMatch(rendered, /pauseSelectionAuto\('hover'\)|pauseSelectionAuto\('focus'\)/);
   assert.match(rendered, /document\.addEventListener\('visibilitychange'/);
-  assert.match(rendered, /reducedMotion\|\|!selectionInView/);
-  assert.match(rendered, /2026-07-23-v31-1-selection-autoplay/);
+  assert.match(rendered, /\{threshold:\.12\}/);
+  assert.doesNotMatch(rendered, /reducedMotion\|\|!selectionInView/);
+  assert.match(rendered, /2026-07-23-v31-2-density-autoplay/);
+});
+
+test('首页内容板块收紧比例并为轮播图片提供精确响应式尺寸', () => {
+  const rendered = renderSite(html, data);
+
+  assert.match(rendered, /\.intro\.section\{padding-top:92px;padding-bottom:92px\}/);
+  assert.match(rendered, /\.asuka-selection\.section\{padding-top:84px;padding-bottom:80px\}/);
+  assert.match(rendered, /\.asuka-selection-slide\{flex-basis:clamp\(640px,56vw,900px\)\}/);
+  assert.match(rendered, /\.entry-card\{min-height:430px;padding:30px\}/);
+  assert.match(rendered, /@media\(max-width:760px\)\{\.intro\.section\{padding-top:58px;padding-bottom:60px\}/);
+  assert.equal((rendered.match(/\(max-width:1607px\) 56vw, 900px/g) || []).length, 6);
 });
