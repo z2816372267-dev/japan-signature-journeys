@@ -1,4 +1,5 @@
 import initialContent from '../content/journeys/kanto-6d.json';
+import initialHomepage from '../content/homepage.json';
 import { CMS_CONFIG } from './config.js';
 import {
   callCms,
@@ -11,28 +12,66 @@ import { formatBytes, prepareResponsiveImage } from './lib/images.js';
 
 const clone = (value) => (window.structuredClone ? structuredClone(value) : JSON.parse(JSON.stringify(value)));
 const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
-const LOCAL_DRAFT_KEY = 'asuka-cms:kanto-6d:draft';
+
+const RESOURCE_META = Object.freeze({
+  homepage: {
+    label: '官网首页',
+    shortLabel: '首页',
+    defaultMessage: '更新飞鸟旅行官网首页内容',
+    initial: initialHomepage,
+  },
+  'kanto-6d': {
+    label: '关东山海6日',
+    shortLabel: '关东6日',
+    defaultMessage: '更新关东6日行程内容',
+    initial: initialContent,
+  },
+});
+
+function createResourceState(initial) {
+  return {
+    content: clone(initial),
+    published: clone(initial),
+    dirty: false,
+    revision: 0,
+    draftInfo: null,
+    publishRequestId: null,
+    previewUrls: new Map(),
+    history: [],
+    localSaveTimer: null,
+    loaded: false,
+  };
+}
 
 const state = {
   actor: null,
-  content: clone(initialContent),
-  published: clone(initialContent),
-  tab: 'overview',
+  resourceId: 'homepage',
+  resources: {
+    homepage: createResourceState(initialHomepage),
+    'kanto-6d': createResourceState(initialContent),
+  },
+  tab: 'home',
   selectedDay: 0,
   device: 'desktop',
-  dirty: false,
   saving: false,
-  revision: 0,
-  draftInfo: null,
-  publishRequestId: null,
   verificationInfo: null,
-  previewUrls: new Map(),
-  history: [],
   staff: null,
-  localSaveTimer: null,
   previewFrame: 0,
   modalReturnFocus: null,
 };
+
+for (const property of ['content', 'published', 'dirty', 'revision', 'draftInfo', 'publishRequestId', 'previewUrls', 'history', 'localSaveTimer']) {
+  Object.defineProperty(state, property, {
+    configurable: false,
+    enumerable: true,
+    get() {
+      return state.resources[state.resourceId][property];
+    },
+    set(value) {
+      state.resources[state.resourceId][property] = value;
+    },
+  });
+}
 
 const elements = {
   loginScreen: document.querySelector('#loginScreen'),
@@ -66,6 +105,7 @@ const elements = {
 };
 
 const TAB_COPY = {
+  home: ['HOMEPAGE CONTENT', '首页内容'],
   overview: ['JOURNEY CONTENT', '产品概览'],
   days: ['DAY BY DAY', '每日行程'],
   highlights: ['VISUAL STORY', '亮点与图片'],
@@ -75,6 +115,7 @@ const TAB_COPY = {
 };
 
 const PREVIEW_COPY = {
+  home: ['LIVE HOMEPAGE', '首页实时预览'],
   overview: ['LIVE WEBSITE', '产品概览预览'],
   days: ['LIVE WEBSITE', '每日行程预览'],
   highlights: ['LIVE WEBSITE', '亮点与图片预览'],
@@ -101,26 +142,47 @@ function stripClientInternal(value) {
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value)
     .filter(([key]) => !key.startsWith('_'))
-    .map(([key, item]) => [key, stripClientInternal(item)]));
+      .map(([key, item]) => [key, stripClientInternal(item)]));
+}
+
+function currentResourceMeta() {
+  return RESOURCE_META[state.resourceId];
+}
+
+function localDraftKey(resourceId = state.resourceId) {
+  return `asuka-cms:${resourceId}:draft`;
+}
+
+function hasAnyDirtyResource() {
+  return Object.values(state.resources).some((resource) => resource.dirty);
+}
+
+function getResourcePath(resourceId, path) {
+  return path.split('.').reduce((value, part) => value?.[part], state.resources[resourceId].content);
 }
 
 function getPath(path) {
-  return path.split('.').reduce((value, part) => value?.[part], state.content);
+  return getResourcePath(state.resourceId, path);
 }
 
-function setPath(path, value) {
+function setResourcePath(resourceId, path, value) {
   const parts = path.split('.');
-  let target = state.content;
+  let target = state.resources[resourceId].content;
   parts.slice(0, -1).forEach((part, index) => {
     const next = parts[index + 1];
     if (target[part] == null) target[part] = /^\d+$/.test(next) ? [] : {};
     target = target[part];
   });
   target[parts[parts.length - 1]] = value;
-  synchronizeContent(path);
+  if (resourceId === state.resourceId) synchronizeContent(path);
+}
+
+function setPath(path, value) {
+  setResourcePath(state.resourceId, path, value);
 }
 
 function synchronizeContent(changedPath = '') {
+  if (state.resourceId !== 'kanto-6d') return;
   const content = state.content;
   if (content.card && content.hero && (!changedPath || changedPath === 'card.title' || changedPath === 'card.kicker')) {
     content.hero.title = content.card.title;
@@ -200,6 +262,55 @@ function sectionIntro(kicker, title, copy) {
 
 function formCard(title, copy, body) {
   return `<section class="form-card"><header class="form-card-head"><div><h3>${escapeHtml(title)}</h3>${copy ? `<p>${escapeHtml(copy)}</p>` : ''}</div></header>${body}</section>`;
+}
+
+function renderHomepageEditor() {
+  return `<div class="editor-section editor-section--homepage">
+    ${demoBanner()}
+    ${sectionIntro('HOMEPAGE CONTENT', '官网首页', '统一管理官网封面、品牌介绍、飞鸟之选和三种出发方式。桌面与手机使用同一份内容；版式、颜色、动画与按钮去向已锁定，不会被误改。')}
+    <aside class="locked-layout-note"><strong>已锁定设计</strong><span>导航、字体比例、区块间距、轮播动画、关东详情入口及三种出发方式的按钮去向均由系统保护。</span></aside>
+    ${formCard('首页封面', '封面继续使用3张本地响应式图片轮播；这里只维护游客看到的文字。', `<div class="form-grid">
+      ${field('英文眉题', 'hero.eyebrow', { max: 100, full: false })}
+      ${field('封面标题（换行处按回车）', 'hero.title', { max: 100, full: false, textarea: true })}
+      ${field('封面介绍（换行处按回车）', 'hero.copy', { max: 500, textarea: true, size: 'long' })}
+      ${field('主按钮文字', 'hero.primaryLabel', { max: 30, full: false })}
+      ${field('次按钮文字', 'hero.secondaryLabel', { max: 30, full: false })}
+      ${field('图片说明', 'hero.credit', { max: 180 })}
+    </div>`)}
+    ${state.content.hero.slides.map((slide, index) => formCard(`封面轮播图 ${String(index + 1).padStart(2, '0')}`, index === 0 ? '第一张为官网首屏优先加载图片；建议横图主体居中，手机裁切后仍清晰。' : '轮播图会在首页自动切换，并继续使用本地图片保证中国大陆加载速度。', `<div class="form-grid">${imageUploader(`第${index + 1}张封面图片`, `hero.slides.${index}.image`, slide.image)}</div>`)).join('')}
+    ${formCard('品牌介绍', '官网封面下方的品牌主张与两段说明。', `<div class="form-grid">
+      ${field('英文眉题', 'intro.eyebrow', { max: 80, full: false })}
+      ${field('品牌标题（换行处按回车）', 'intro.title', { max: 100, full: false, textarea: true })}
+      ${field('第一段重点文字', 'intro.lead', { max: 400, textarea: true })}
+      ${field('第二段说明', 'intro.copy', { max: 500, textarea: true, size: 'long' })}
+    </div>`)}
+    ${formCard('飞鸟之选 · 区块标题', '保持6项中央主图与两侧预告的自动轮播结构。', `<div class="form-grid">
+      ${field('英文眉题', 'selection.eyebrow', { max: 80, full: false })}
+      ${field('中文标题', 'selection.title', { max: 80, full: false })}
+      ${field('区块说明', 'selection.copy', { max: 400, textarea: true })}
+    </div>`)}
+    ${state.content.selection.items.map((item, index) => formCard(`飞鸟之选 ${String(index + 1).padStart(2, '0')} · ${item.title}`, index === 0 ? '第一项按钮固定进入关东山海6日详情；其余项目固定进入日本心旅行。' : '按钮去向已固定为日本心旅行，只需维护文案和图片。', `<div class="form-grid">
+      ${field('地区英文', `selection.items.${index}.placeLatin`, { max: 30, full: false })}
+      ${field('地区中文', `selection.items.${index}.placeCn`, { max: 20, full: false })}
+      ${field('英文眉题', `selection.items.${index}.kicker`, { max: 80, full: false })}
+      ${field('中文标题', `selection.items.${index}.title`, { max: 80, full: false })}
+      ${field('说明文字', `selection.items.${index}.copy`, { max: 400, textarea: true })}
+      ${field('按钮文字', `selection.items.${index}.ctaLabel`, { max: 30, full: false })}
+      ${imageUploader('卡片图片', `selection.items.${index}.image`, item.image)}
+    </div>`)).join('')}
+    ${formCard('三种出发方式 · 区块标题', '三个按钮的功能去向已锁定，只维护展示文字和图片。', `<div class="form-grid">
+      ${field('英文眉题', 'ways.eyebrow', { max: 80, full: false })}
+      ${field('中文标题', 'ways.title', { max: 80, full: false })}
+      ${field('区块说明', 'ways.copy', { max: 300, textarea: true })}
+    </div>`)}
+    ${state.content.ways.items.map((item, index) => formCard(`出发方式 ${String(index + 1).padStart(2, '0')} · ${item.title}`, ['固定进入“日本心旅行”。', '固定进入“个性化定制”。', '固定进入“主题鉴赏行”。'][index], `<div class="form-grid">
+      ${field('英文眉题', `ways.items.${index}.kicker`, { max: 80, full: false })}
+      ${field('中文标题', `ways.items.${index}.title`, { max: 80, full: false })}
+      ${field('说明文字', `ways.items.${index}.copy`, { max: 400, textarea: true })}
+      ${field('按钮文字', `ways.items.${index}.ctaLabel`, { max: 30, full: false })}
+      ${imageUploader('卡片图片', `ways.items.${index}.image`, item.image)}
+    </div>`)).join('')}
+  </div>`;
 }
 
 function overviewFactEditor(index) {
@@ -325,17 +436,18 @@ function renderStaysEditor() {
 }
 
 function renderPublishEditor() {
+  const meta = currentResourceMeta();
   const dirtyText = state.dirty ? '当前有尚未保存或发布的修改' : '当前草稿与最近保存状态一致';
   const history = state.history.length
-    ? state.history.map((item) => `<div class="history-item"><div><strong>${escapeHtml(item.message || '更新官网行程')}</strong><span>${escapeHtml(item.publishedByName || item.publishedBy || '')} · ${formatDate(item.publishedAt)}</span></div><a href="${escapeHtml(item.commitUrl)}" target="_blank" rel="noopener">${escapeHtml(String(item.commitSha || '').slice(0, 7))} ↗</a></div>`).join('')
+    ? state.history.map((item) => `<div class="history-item"><div><strong>${escapeHtml(item.message || meta.defaultMessage)}</strong><span>${escapeHtml(item.publishedByName || item.publishedBy || '')} · ${formatDate(item.publishedAt)}</span></div><a href="${escapeHtml(item.commitUrl)}" target="_blank" rel="noopener">${escapeHtml(String(item.commitSha || '').slice(0, 7))} ↗</a></div>`).join('')
     : '<p>还没有后台发布记录。</p>';
   return `<div class="editor-section">
     ${demoBanner()}
-    ${sectionIntro('PUBLISH CENTER', '发布管理', '草稿仅在后台可见；点击发布后，系统会生成静态官网文件并提交到 GitHub，GitHub Pages 通常会在1—3分钟内更新。')}
+    ${sectionIntro('PUBLISH CENTER', `发布管理 · ${meta.shortLabel}`, `当前管理的是“${meta.label}”。草稿仅在后台可见；点击发布后，系统会生成静态官网文件并提交到 GitHub，GitHub Pages 通常会在1—3分钟内更新。`)}
     <div class="publish-grid">
       <section class="publish-card"><small>DRAFT STATUS</small><h3>${state.dirty ? '有待处理修改' : '草稿已保存'}</h3><p>${dirtyText}</p><button class="secondary" data-save-draft type="button">保存当前草稿</button></section>
       <section class="publish-card"><small>LIVE WEBSITE</small><h3>飞鸟旅行官网</h3><p>发布不会让游客依赖后台数据库，官网继续以静态文件高速加载。</p><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${CMS_CONFIG.publicSiteUrl}" target="_blank" rel="noopener">查看官网 ↗</a></section>
-      <section class="publish-card full"><small>ONE-CLICK PUBLISH</small><h3>确认无误后更新官网</h3><p>系统会一并提交行程文字、响应式图片和静态页面。每次发布都有 GitHub 版本记录，可追溯和回退。</p><button class="primary admin-only" data-open-publish type="button">检查并发布官网</button></section>
+      <section class="publish-card full"><small>ONE-CLICK PUBLISH</small><h3>确认无误后更新${meta.label}</h3><p>系统会一并提交当前文字、响应式图片和静态页面。首页与关东行程各自保存草稿和版本，不会相互覆盖。</p><button class="primary admin-only" data-open-publish type="button">检查并发布官网</button></section>
       <section class="publish-card full"><small>PUBLISH HISTORY</small><h3>最近发布记录</h3><div class="history-list">${history}</div></section>
     </div>
   </div>`;
@@ -364,6 +476,7 @@ function demoBanner() {
 
 function renderEditor() {
   const renderers = {
+    home: renderHomepageEditor,
     overview: renderOverviewEditor,
     days: renderDaysEditor,
     highlights: renderHighlightsEditor,
@@ -437,12 +550,19 @@ function bindEditorEvents() {
 }
 
 function markDirty() {
-  state.dirty = true;
-  state.publishRequestId = null;
-  updateSaveState();
-  clearTimeout(state.localSaveTimer);
-  state.localSaveTimer = setTimeout(saveLocalDraft, 450);
-  schedulePreview();
+  markResourceDirty(state.resourceId);
+}
+
+function markResourceDirty(resourceId) {
+  const resource = state.resources[resourceId];
+  resource.dirty = true;
+  resource.publishRequestId = null;
+  clearTimeout(resource.localSaveTimer);
+  resource.localSaveTimer = setTimeout(() => saveLocalDraft(resourceId), 450);
+  if (resourceId === state.resourceId) {
+    updateSaveState();
+    schedulePreview();
+  }
 }
 
 function updateSaveState(message) {
@@ -451,36 +571,38 @@ function updateSaveState(message) {
   elements.saveState.lastChild.textContent = message || (state.saving ? '正在保存…' : state.dirty ? '有未保存修改' : '内容已同步');
 }
 
-function saveLocalDraft() {
+function saveLocalDraft(resourceId = state.resourceId) {
+  const resource = state.resources[resourceId];
   try {
-    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({
-      content: state.content,
+    localStorage.setItem(localDraftKey(resourceId), JSON.stringify({
+      content: resource.content,
       savedAt: new Date().toISOString(),
-      revision: state.revision,
-      dirty: state.dirty,
+      revision: resource.revision,
+      dirty: resource.dirty,
     }));
   } catch {
     // Local storage is an extra recovery layer; server drafts remain authoritative.
   }
 }
 
-function restoreLocalDraft(serverUpdatedAt) {
+function restoreLocalDraft(resourceId, serverUpdatedAt) {
+  const resource = state.resources[resourceId];
   try {
-    const cached = JSON.parse(localStorage.getItem(LOCAL_DRAFT_KEY) || 'null');
-    if (!cached?.content || cached.content.id !== 'kanto-6d') return;
+    const cached = JSON.parse(localStorage.getItem(localDraftKey(resourceId)) || 'null');
+    if (!cached?.content || cached.content.id !== resourceId) return;
     const isNewer = !serverUpdatedAt || new Date(cached.savedAt) > new Date(serverUpdatedAt);
     if (isNewer && (cached.dirty === true || cached.dirty == null)) {
-      state.content = cached.content;
-      synchronizeContent();
-      state.dirty = true;
-      showToast('已恢复此设备上较新的未提交草稿');
+      resource.content = cached.content;
+      resource.dirty = true;
+      if (resourceId === state.resourceId) synchronizeContent();
+      showToast(`已恢复此设备上较新的${RESOURCE_META[resourceId].shortLabel}未提交草稿`);
     }
   } catch {
-    localStorage.removeItem(LOCAL_DRAFT_KEY);
+    localStorage.removeItem(localDraftKey(resourceId));
   }
 }
 
-function validateContentForPublish() {
+function validateJourneyForPublish() {
   synchronizeContent();
   const errors = [];
   const content = state.content;
@@ -504,14 +626,44 @@ function validateContentForPublish() {
   return errors;
 }
 
+function validateHomepageForPublish() {
+  const errors = [];
+  const content = state.content;
+  if (!content.hero?.eyebrow?.trim() || !content.hero?.title?.trim() || !content.hero?.copy?.trim()) errors.push('首页封面文字必须填写完整');
+  if (!content.hero?.primaryLabel?.trim() || !content.hero?.secondaryLabel?.trim() || !content.hero?.credit?.trim()) errors.push('首页封面按钮和图片说明必须填写完整');
+  if (content.hero?.slides?.length !== 3 || content.hero.slides.some((slide) => !slide.image?.alt || !slide.image?.webp480 || !slide.image?.fallback)) errors.push('首页封面的3张轮播图片必须填写完整');
+  if (!content.intro?.eyebrow?.trim() || !content.intro?.title?.trim() || !content.intro?.lead?.trim() || !content.intro?.copy?.trim()) errors.push('品牌介绍文字必须填写完整');
+  if (!content.selection?.eyebrow?.trim() || !content.selection?.title?.trim() || !content.selection?.copy?.trim()) errors.push('飞鸟之选区块标题必须填写完整');
+  if (content.selection?.items?.length !== 6) errors.push('飞鸟之选必须保留6项内容');
+  else content.selection.items.forEach((item, index) => {
+    if (!item.placeLatin?.trim() || !item.placeCn?.trim() || !item.kicker?.trim() || !item.title?.trim() || !item.copy?.trim() || !item.ctaLabel?.trim()) errors.push(`飞鸟之选第${index + 1}项文字不完整`);
+    if (!item.image?.alt || !item.image?.webp480 || !item.image?.fallback) errors.push(`飞鸟之选第${index + 1}项图片不完整`);
+  });
+  if (!content.ways?.eyebrow?.trim() || !content.ways?.title?.trim() || !content.ways?.copy?.trim()) errors.push('三种出发方式区块标题必须填写完整');
+  if (content.ways?.items?.length !== 3) errors.push('三种出发方式必须保留3项内容');
+  else content.ways.items.forEach((item, index) => {
+    if (!item.kicker?.trim() || !item.title?.trim() || !item.copy?.trim() || !item.ctaLabel?.trim()) errors.push(`出发方式第${index + 1}项文字不完整`);
+    if (!item.image?.alt || !item.image?.webp480 || !item.image?.fallback) errors.push(`出发方式第${index + 1}项图片不完整`);
+  });
+  return errors;
+}
+
+function validateContentForPublish() {
+  return state.resourceId === 'homepage' ? validateHomepageForPublish() : validateJourneyForPublish();
+}
+
 async function saveDraft() {
+  const resourceId = state.resourceId;
+  const resource = state.resources[resourceId];
   const errors = validateContentForPublish();
   if (errors.length) return showToast(errors[0], 'error');
   if (DEMO_MODE) {
-    state.dirty = false;
-    updateSaveState();
-    saveLocalDraft();
-    schedulePreview();
+    resource.dirty = false;
+    saveLocalDraft(resourceId);
+    if (resourceId === state.resourceId) {
+      updateSaveState();
+      schedulePreview();
+    }
     return showToast('演示模式：草稿已保存在此浏览器');
   }
   state.saving = true;
@@ -519,16 +671,18 @@ async function saveDraft() {
   elements.saveButton.disabled = true;
   try {
     synchronizeContent();
-    const result = await callCms('saveDraft', { content: state.content, revision: state.revision });
-    state.revision = Number(result.revision) || state.revision;
-    state.dirty = false;
-    saveLocalDraft();
-    updateSaveState(`已保存 ${formatTime(result.savedAt)}`);
-    schedulePreview();
-    showToast('草稿已安全保存');
+    const result = await callCms('saveDraft', { resourceId, content: resource.content, revision: resource.revision });
+    resource.revision = Number(result.revision) || resource.revision;
+    resource.dirty = false;
+    saveLocalDraft(resourceId);
+    if (resourceId === state.resourceId) {
+      updateSaveState(`已保存 ${formatTime(result.savedAt)}`);
+      schedulePreview();
+    }
+    showToast(`${RESOURCE_META[resourceId].shortLabel}草稿已安全保存`);
   } catch (error) {
-    updateSaveState('保存失败');
-    if (error.code === 'DRAFT_CONFLICT') openDraftConflictModal(error.message);
+    if (resourceId === state.resourceId) updateSaveState('保存失败');
+    if (error.code === 'DRAFT_CONFLICT' && resourceId === state.resourceId) openDraftConflictModal(error.message);
     else showToast(error.message, 'error');
   } finally {
     state.saving = false;
@@ -540,10 +694,12 @@ async function saveDraft() {
 async function handleImageUpload(input) {
   const file = input.files?.[0];
   if (!file) return;
+  const resourceId = state.resourceId;
+  const resource = state.resources[resourceId];
   const path = input.dataset.imageUpload;
   const card = input.closest('[data-image-card]');
   const controls = card.querySelector('.image-controls');
-  const existing = getPath(path);
+  const existing = getResourcePath(resourceId, path);
   const alternateInput = card.querySelector('[data-image-alt]');
   const alt = (existing?.alt || alternateInput?.value || '').trim();
   if (!alt) {
@@ -560,22 +716,22 @@ async function handleImageUpload(input) {
     const prepared = await prepareResponsiveImage(file);
     progress.querySelector('span').textContent = `已优化为 ${formatBytes(prepared.outputBytes)}，正在安全上传…`;
     if (DEMO_MODE) {
-      state.previewUrls.set(path, prepared.previewUrl);
+      resource.previewUrls.set(path, prepared.previewUrl);
       showToast(`演示图片处理完成：${prepared.original.width}×${prepared.original.height}`);
     } else {
       const staged = await callCms('stageAsset', {
-        journeyId: state.content.id,
+        resourceId,
         alt,
         slug: prepared.slug,
         replacesAssetId: existing?._assetId || '',
         variants: prepared.variants,
       });
-      setPath(path, staged.image);
-      state.previewUrls.set(path, staged.previewUrl || prepared.previewUrl);
+      setResourcePath(resourceId, path, staged.image);
+      resource.previewUrls.set(path, staged.previewUrl || prepared.previewUrl);
       showToast('新图片已暂存，发布官网后正式生效');
     }
-    markDirty();
-    renderEditor();
+    markResourceDirty(resourceId);
+    if (resourceId === state.resourceId) renderEditor();
   } catch (error) {
     showToast(error.message, 'error');
   } finally {
@@ -610,6 +766,34 @@ function previewMetric(eyebrow, label, metric) {
     return `<div class="preview-metric preview-metric--routes"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><span class="preview-metric-routes">${lines.map(previewMetricRoute).join('')}</span>${note ? `<span class="preview-metric-note">${withBreaks(note)}</span>` : ''}</div>`;
   }
   return `<div class="preview-metric"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}：${escapeHtml(lines[0] || '')}</strong>${note ? `<span class="preview-metric-note">${withBreaks(note)}</span>` : ''}</div>`;
+}
+
+function renderHomepagePreview(data) {
+  const heroImage = currentImageUrl('hero.slides.0.image', data.hero.slides[0]?.image);
+  return `<section class="preview-home-hero"${heroImage ? ` style="background-image:url('${escapeHtml(heroImage)}')"` : ''}>
+      <div class="preview-home-hero-copy"><small>${escapeHtml(data.hero.eyebrow)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${withBreaks(data.hero.copy)}</p><div><span>${escapeHtml(data.hero.primaryLabel)}</span><b>${escapeHtml(data.hero.secondaryLabel)} ↓</b></div></div>
+      <em>${escapeHtml(data.hero.credit)}</em>
+    </section>
+    <div class="preview-home-content">
+      <section class="preview-home-intro">
+        <div><small>${escapeHtml(data.intro.eyebrow)}</small><h3>${withBreaks(data.intro.title)}</h3></div>
+        <div><strong>${withBreaks(data.intro.lead)}</strong><p>${withBreaks(data.intro.copy)}</p></div>
+      </section>
+      <section class="preview-home-selection">
+        ${previewSectionTitle(data.selection.eyebrow, data.selection.title, data.selection.copy)}
+        <div class="preview-home-selection-list">${data.selection.items.map((item, index) => {
+          const image = currentImageUrl(`selection.items.${index}.image`, item.image);
+          return `<article${index === 0 ? ' class="active"' : ''}>${image ? `<img src="${escapeHtml(image)}" alt="" />` : ''}<div><small>${escapeHtml(item.placeLatin)} · ${escapeHtml(item.placeCn)}</small><span>${escapeHtml(item.kicker)}</span><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
+        }).join('')}</div>
+      </section>
+      <section class="preview-home-ways">
+        ${previewSectionTitle(data.ways.eyebrow, data.ways.title, data.ways.copy)}
+        <div class="preview-home-way-grid">${data.ways.items.map((item, index) => {
+          const image = currentImageUrl(`ways.items.${index}.image`, item.image);
+          return `<article${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.kicker)}</small><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
+        }).join('')}</div>
+      </section>
+    </div>`;
 }
 
 function renderOverviewPreview(data) {
@@ -690,21 +874,28 @@ function renderStaysPreview(data) {
 function renderPublishPreview(data) {
   const errors = validateContentForPublish();
   const latest = state.history[0];
+  const isHomepage = state.resourceId === 'homepage';
+  const meta = currentResourceMeta();
   const checks = errors.length
     ? errors.slice(0, 4).map((error) => `<li class="warning">${escapeHtml(error)}</li>`).join('')
-    : '<li>六天行程字段完整</li><li>行车里程与预计驾驶时间完整</li><li>响应式图片路径已准备</li><li>官网继续使用静态文件高速加载</li>';
+    : isHomepage
+      ? '<li>首页4个内容板块字段完整</li><li>3张封面、6项飞鸟之选和3种出发方式图片完整</li><li>按钮去向与轮播动画已锁定</li><li>官网继续使用静态文件高速加载</li>'
+      : '<li>六天行程字段完整</li><li>行车里程与预计驾驶时间完整</li><li>响应式图片路径已准备</li><li>官网继续使用静态文件高速加载</li>';
+  const contentStatus = isHomepage
+    ? [`${data.selection.items.length}项飞鸟之选`, `${data.hero.slides.length}张封面 · ${data.ways.items.length}种出发方式`]
+    : [`${data.days.length}天行程`, `${data.highlights.items.length}项亮点 · ${data.stays.groups.length}组住宿`];
   return `<header class="preview-system-head">
       <span class="preview-system-badge ${state.dirty ? 'warning' : ''}">${state.dirty ? '有待处理修改' : '草稿状态正常'}</span>
-      <small>PUBLISH CENTER</small><h2>发布前状态一目了然</h2><p>这里是内部发布检查，不会作为官网页面展示给游客。</p>
+      <small>PUBLISH CENTER</small><h2>${escapeHtml(meta.label)}发布检查</h2><p>这里是内部发布检查，不会作为官网页面展示给游客。</p>
     </header>
     <div class="preview-system-content">
       <div class="preview-status-grid">
         <article><small>DRAFT</small><strong>${state.dirty ? '尚未保存' : '已保存'}</strong><span>${state.dirty ? '请先保存草稿' : '可以继续发布检查'}</span></article>
-        <article><small>CONTENT</small><strong>${data.days.length}天行程</strong><span>${data.highlights.items.length}项亮点 · ${data.stays.groups.length}组住宿</span></article>
+        <article><small>CONTENT</small><strong>${escapeHtml(contentStatus[0])}</strong><span>${escapeHtml(contentStatus[1])}</span></article>
         <article><small>VALIDATION</small><strong>${errors.length ? `${errors.length}项待完善` : '检查通过'}</strong><span>${errors.length ? '发布前需要处理' : '关键字段均已填写'}</span></article>
       </div>
       <section class="preview-system-card"><small>PRE-PUBLISH CHECK</small><h3>发布检查</h3><ul class="preview-check-list">${checks}</ul></section>
-      <section class="preview-system-card"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || '更新官网行程')}</strong><span>${escapeHtml(latest.publishedByName || latest.publishedBy || '')} · ${escapeHtml(formatDate(latest.publishedAt))}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7))}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
+      <section class="preview-system-card"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || meta.defaultMessage)}</strong><span>${escapeHtml(latest.publishedByName || latest.publishedBy || '')} · ${escapeHtml(formatDate(latest.publishedAt))}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7))}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
     </div>`;
 }
 
@@ -728,6 +919,7 @@ function renderStaffPreview() {
 }
 
 const previewRenderers = {
+  home: renderHomepagePreview,
   overview: renderOverviewPreview,
   days: renderDaysPreview,
   highlights: renderHighlightsPreview,
@@ -746,12 +938,37 @@ function renderPreview() {
 
 async function loadHistory() {
   if (DEMO_MODE) return;
+  const resourceId = state.resourceId;
   try {
-    const result = await callCms('history');
-    state.history = result.items || [];
+    const result = await callCms('history', { resourceId });
+    state.resources[resourceId].history = result.items || [];
   } catch (error) {
     showToast(`发布记录读取失败：${error.message}`, 'error');
   }
+}
+
+async function loadResource(resourceId, options = {}) {
+  const resource = state.resources[resourceId];
+  const meta = RESOURCE_META[resourceId];
+  if (!resource || !meta) throw new Error('后台内容类型不受支持');
+  if (resource.loaded && !options.force) return;
+  if (DEMO_MODE) {
+    resource.loaded = true;
+    if (options.restoreLocal !== false) restoreLocalDraft(resourceId, null);
+    return;
+  }
+  const result = await callCms('getContent', { resourceId });
+  if (result.content?.id && result.content.id !== resourceId) {
+    throw new Error(`云函数尚未支持${meta.label}。请部署 V32 asuka-cms 云函数包后重新进入后台。`);
+  }
+  resource.content = clone(result.content || meta.initial);
+  resource.published = clone(result.published || result.content || meta.initial);
+  resource.draftInfo = result.draftInfo || null;
+  resource.revision = Number(result.draftInfo?.revision) || 0;
+  resource.publishRequestId = null;
+  resource.dirty = false;
+  resource.loaded = true;
+  if (options.restoreLocal !== false) restoreLocalDraft(resourceId, result.draftInfo?.updatedAt);
 }
 
 async function loadStaff() {
@@ -768,11 +985,33 @@ async function loadStaff() {
 
 async function selectTab(tab) {
   if (tab === 'staff' && state.actor?.role !== 'admin') return;
+  const resourceByTab = {
+    home: 'homepage',
+    overview: 'kanto-6d',
+    days: 'kanto-6d',
+    highlights: 'kanto-6d',
+    stays: 'kanto-6d',
+  };
+  const nextResourceId = resourceByTab[tab] || state.resourceId;
   state.tab = tab;
+  state.resourceId = nextResourceId;
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
   [elements.sectionEyebrow.textContent, elements.sectionTitle.textContent] = TAB_COPY[tab];
   elements.cmsApp.classList.remove('sidebar-open');
   elements.mobileMenu.setAttribute('aria-expanded', 'false');
+  if (!state.resources[nextResourceId].loaded) {
+    elements.editorCanvas.innerHTML = `<div class="editor-loading"><span></span><p>正在读取${escapeHtml(RESOURCE_META[nextResourceId].label)}最新内容…</p></div>`;
+    elements.journeyPreview.innerHTML = '';
+    try {
+      await loadResource(nextResourceId);
+    } catch (error) {
+      elements.editorCanvas.innerHTML = `<div class="editor-section">${sectionIntro('SETUP REQUIRED', '内容暂时无法读取', error.message)}</div>`;
+      showToast(error.message, 'error');
+      return;
+    }
+  }
+  synchronizeContent();
+  updateSaveState();
   renderEditor();
   renderPreview();
   elements.previewStage.scrollTo({ top: 0, behavior: 'smooth' });
@@ -812,13 +1051,7 @@ async function reloadLatestDraft() {
   button.disabled = true;
   button.textContent = '正在读取…';
   try {
-    const result = await callCms('getContent');
-    state.content = clone(result.content || initialContent);
-    state.published = clone(result.published || result.content || initialContent);
-    state.draftInfo = result.draftInfo || null;
-    state.revision = Number(result.draftInfo?.revision) || 0;
-    state.dirty = false;
-    state.publishRequestId = null;
+    await loadResource(state.resourceId, { force: true, restoreLocal: false });
     synchronizeContent();
     saveLocalDraft();
     closeModal();
@@ -835,6 +1068,8 @@ async function reloadLatestDraft() {
 
 function openPublishModal() {
   if (state.actor?.role !== 'admin') return showToast('只有管理员可以发布官网', 'error');
+  const meta = currentResourceMeta();
+  const isHomepage = state.resourceId === 'homepage';
   const errors = validateContentForPublish();
   if (errors.length) {
     openModal(`<p class="editor-kicker">CHECK REQUIRED</p><h2>发布前还需完善</h2><p>请先处理以下内容：</p><div class="publish-checks">${errors.slice(0, 8).map((error) => `<div>● ${escapeHtml(error)}</div>`).join('')}</div><div class="modal-actions"><button class="primary" data-close-modal type="button">返回修改</button></div>`);
@@ -842,9 +1077,12 @@ function openPublishModal() {
     return;
   }
   state.publishRequestId ||= window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  openModal(`<p class="editor-kicker">READY TO PUBLISH</p><h2>确认发布到飞鸟官网？</h2><p>本次会同时更新关东6日的文字、行车数据、响应式图片与静态页面。GitHub Pages 通常在1—3分钟内显示最新版。</p>
-    <div class="publish-checks"><div>✓ 六天行程字段完整</div><div>✓ 手机与桌面图片路径有效</div><div>✓ 发布密钥只在云函数中使用</div></div>
-    <div class="field full"><label for="publishMessage">本次提交说明</label><input id="publishMessage" maxlength="100" value="更新关东6日行程内容" /></div>
+  const checks = isHomepage
+    ? '<div>✓ 首页封面、品牌介绍、飞鸟之选与出发方式完整</div><div>✓ 桌面与手机共用同一份响应式图片</div><div>✓ 版式、动画与功能链接保持锁定</div>'
+    : '<div>✓ 六天行程字段完整</div><div>✓ 手机与桌面图片路径有效</div><div>✓ 行车里程与预计驾驶时间完整</div>';
+  openModal(`<p class="editor-kicker">READY TO PUBLISH</p><h2>确认发布${escapeHtml(meta.label)}？</h2><p>本次只更新“${escapeHtml(meta.label)}”的文字、响应式图片与对应静态页面；不会覆盖另一个内容资源。GitHub Pages 通常在1—3分钟内显示最新版。</p>
+    <div class="publish-checks">${checks}<div>✓ 发布密钥只在云函数中使用</div></div>
+    <div class="field full"><label for="publishMessage">本次提交说明</label><input id="publishMessage" maxlength="100" value="${escapeHtml(meta.defaultMessage)}" /></div>
     <div class="modal-actions"><button class="secondary" data-close-modal type="button">取消</button><button class="primary" id="confirmPublish" type="button">确认发布官网</button></div>`);
   elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
   elements.modalContent.querySelector('#confirmPublish').addEventListener('click', publishSite);
@@ -867,6 +1105,7 @@ async function publishSite() {
     }
     synchronizeContent();
     const result = await callCms('publish', {
+      resourceId: state.resourceId,
       content: state.content,
       message,
       revision: state.revision,
@@ -1029,16 +1268,9 @@ async function initializeApp(actor) {
   elements.profileRole.textContent = actor.role === 'admin' ? '管理员' : '编辑';
   applyRoleVisibility();
   try {
-    if (DEMO_MODE) {
-      restoreLocalDraft(null);
-    } else {
-      const result = await callCms('getContent');
-      state.content = clone(result.content || initialContent);
-      state.published = clone(result.published || result.content || initialContent);
-      state.draftInfo = result.draftInfo || null;
-      state.revision = Number(result.draftInfo?.revision) || 0;
-      restoreLocalDraft(result.draftInfo?.updatedAt);
-    }
+    state.resourceId = 'homepage';
+    state.tab = 'home';
+    await loadResource('homepage');
     synchronizeContent();
     renderEditor();
     renderPreview();
@@ -1132,7 +1364,7 @@ elements.loginForm.addEventListener('submit', login);
 elements.saveButton.addEventListener('click', saveDraft);
 elements.quickPublishButton.addEventListener('click', openPublishModal);
 elements.signOutButton.addEventListener('click', async () => {
-  if (state.dirty && !confirm('当前有未保存修改，确定退出吗？')) return;
+  if (hasAnyDirtyResource() && !confirm('当前有未保存修改，确定退出吗？')) return;
   if (!DEMO_MODE) await signOut();
   location.href = location.pathname;
 });
@@ -1159,7 +1391,7 @@ document.addEventListener('keydown', (event) => {
   }
 });
 window.addEventListener('beforeunload', (event) => {
-  if (!state.dirty) return;
+  if (!hasAnyDirtyResource()) return;
   event.preventDefault();
   event.returnValue = '';
 });

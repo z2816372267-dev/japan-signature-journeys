@@ -4,7 +4,13 @@ const crypto = require('node:crypto');
 const tcb = require('@cloudbase/node-sdk');
 const { GitHubPublisher } = require('./lib/github');
 const { renderSite } = require('./lib/render-journey.cjs');
-const { cmsError, normalizeEmail, stripInternal, validateJourney } = require('./lib/validation');
+const {
+  cmsError,
+  normalizeEmail,
+  stripInternal,
+  validateHomepage,
+  validateJourney,
+} = require('./lib/validation');
 
 const app = tcb.init({ env: tcb.SYMBOL_CURRENT_ENV });
 const auth = app.auth();
@@ -25,6 +31,34 @@ const SITE = Object.freeze({
   branch: process.env.CMS_GITHUB_BRANCH || 'main',
   url: process.env.CMS_SITE_URL || 'https://z2816372267-dev.github.io/japan-signature-journeys/',
 });
+
+const CONTENT_RESOURCES = Object.freeze({
+  homepage: {
+    id: 'homepage',
+    label: '官网首页',
+    path: 'content/homepage.json',
+    defaultMessage: 'Update Asuka homepage via CMS',
+    validate: validateHomepage,
+  },
+  'kanto-6d': {
+    id: 'kanto-6d',
+    label: '关东山海6日',
+    path: 'content/journeys/kanto-6d.json',
+    defaultMessage: 'Update Kanto journey via Asuka CMS',
+    validate: validateJourney,
+  },
+});
+
+function contentResource(value) {
+  const id = String(value || 'kanto-6d').trim();
+  const resource = CONTENT_RESOURCES[id];
+  if (!resource) throw cmsError('INVALID_RESOURCE', '后台内容类型不受支持');
+  return resource;
+}
+
+function resourceFromEvent(event = {}) {
+  return contentResource(event.resourceId || event.content?.id || event.journeyId || 'kanto-6d');
+}
 
 function github() {
   return new GitHubPublisher({
@@ -150,17 +184,18 @@ async function audit(actor, action, detail = {}) {
   }
 }
 
-async function readPublishedContent() {
-  const text = await github().getTextFile('content/journeys/kanto-6d.json');
-  return validateJourney(JSON.parse(text));
+async function readPublishedContent(resource) {
+  const text = await github().getTextFile(resource.path);
+  return resource.validate(JSON.parse(text));
 }
 
-async function getContent(actor) {
-  const draft = await readDoc(COLLECTIONS.drafts, 'kanto-6d');
-  const draftContent = draft?.content ? validateJourney(structuredClone(draft.content)) : null;
+async function getContent(actor, event) {
+  const resource = resourceFromEvent(event);
+  const draft = await readDoc(COLLECTIONS.drafts, resource.id);
+  const draftContent = draft?.content ? resource.validate(structuredClone(draft.content)) : null;
   let published = null;
   try {
-    published = await readPublishedContent();
+    published = await readPublishedContent(resource);
   } catch (error) {
     if (!draft?.content) throw error;
   }
@@ -176,12 +211,15 @@ async function getContent(actor) {
         }
       : null,
     actor,
+    resourceId: resource.id,
   };
 }
 
 async function saveDraft(actor, event) {
-  const content = validateJourney(event.content);
-  const current = await readDoc(COLLECTIONS.drafts, content.id);
+  const resource = resourceFromEvent(event);
+  const content = resource.validate(event.content);
+  if (content.id !== resource.id) throw cmsError('INVALID_RESOURCE', '内容编号与当前编辑栏目不一致');
+  const current = await readDoc(COLLECTIONS.drafts, resource.id);
   const currentRevision = Number(current?.revision) || 0;
   const expectedRevision = Number(event.revision) || 0;
   if (currentRevision !== expectedRevision) {
@@ -194,8 +232,9 @@ async function saveDraft(actor, event) {
   }
   const savedAt = now();
   const revision = currentRevision + 1;
-  await writeDoc(COLLECTIONS.drafts, content.id, {
-    journeyId: content.id,
+  await writeDoc(COLLECTIONS.drafts, resource.id, {
+    resourceId: resource.id,
+    ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
     content,
     revision,
     updatedAt: savedAt,
@@ -203,8 +242,8 @@ async function saveDraft(actor, event) {
     updatedByUid: actor.uid,
     updatedByName: actor.name,
   });
-  await audit(actor, 'save-draft', { journeyId: content.id, revision });
-  return { savedAt, revision };
+  await audit(actor, 'save-draft', { resourceId: resource.id, revision });
+  return { savedAt, revision, resourceId: resource.id };
 }
 
 function decodeVariant(variant, expectedMime) {
@@ -235,7 +274,7 @@ function safeSlug(value) {
 }
 
 async function stageAsset(actor, event) {
-  if (event.journeyId !== 'kanto-6d') throw cmsError('INVALID_IMAGE', '行程编号不正确');
+  const resource = resourceFromEvent(event);
   const alt = String(event.alt || '').trim();
   if (!alt || alt.length > 120) throw cmsError('INVALID_IMAGE', '请填写120字以内的图片说明');
   const input = Object.fromEntries((event.variants || []).map((variant) => [variant.key, variant]));
@@ -259,7 +298,7 @@ async function stageAsset(actor, event) {
   const variants = await Promise.all(Object.entries(specs).map(async ([key, spec]) => {
     const filename = `${slug}-${assetId}-${spec.suffix}`;
     const cloudPath = `cms-assets/${actor.uid}/${assetId}/${filename}`;
-    const repoPath = `images/cms/kanto-6d/${month}/${filename}`;
+    const repoPath = `images/cms/${resource.id}/${month}/${filename}`;
     const uploaded = await app.uploadFile({ cloudPath, fileContent: decoded[key] });
     return {
       key,
@@ -273,7 +312,8 @@ async function stageAsset(actor, event) {
   const largest = input.webp1600;
   const asset = {
     assetId,
-    journeyId: event.journeyId,
+    resourceId: resource.id,
+    ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
     ownerUid: actor.uid,
     ownerEmail: actor.email,
     alt,
@@ -296,7 +336,7 @@ async function stageAsset(actor, event) {
       });
     }
   }
-  await audit(actor, 'stage-asset', { journeyId: event.journeyId, assetId });
+  await audit(actor, 'stage-asset', { resourceId: resource.id, assetId });
 
   const paths = Object.fromEntries(variants.map((variant) => [variant.key, variant.repoPath]));
   const fallback = variants.find((variant) => variant.key === 'fallback');
@@ -364,7 +404,8 @@ async function markAssetsPublished(assets, actor, result, publishedAt) {
 }
 
 async function publish(actor, event) {
-  const currentDraft = await readDoc(COLLECTIONS.drafts, 'kanto-6d');
+  const resource = resourceFromEvent(event);
+  const currentDraft = await readDoc(COLLECTIONS.drafts, resource.id);
   const currentRevision = Number(currentDraft?.revision) || 0;
   const expectedRevision = Number(event.revision) || 0;
   if (event.content && currentRevision !== expectedRevision) {
@@ -372,10 +413,11 @@ async function publish(actor, event) {
     throw cmsError('DRAFT_CONFLICT', `${editor} 已保存了较新的草稿，请重新读取后再发布。`, 409);
   }
   const draft = event.content || currentDraft?.content;
-  const content = validateJourney(draft);
+  const content = resource.validate(draft);
+  if (content.id !== resource.id) throw cmsError('INVALID_RESOURCE', '内容编号与当前发布栏目不一致');
   const cleanContent = stripInternal(content);
   const messageInput = String(event.message || '').trim().replace(/[\r\n]+/g, ' ').slice(0, 100);
-  const message = messageInput || 'Update Kanto journey via Asuka CMS';
+  const message = messageInput || resource.defaultMessage;
   const jobId = publishJobId(event, cleanContent, message);
   const previousJob = await readDoc(COLLECTIONS.publishes, jobId);
   if (previousJob?.status === 'completed' && previousJob.result) return previousJob.result;
@@ -384,7 +426,8 @@ async function publish(actor, event) {
   }
   await writeDoc(COLLECTIONS.publishes, jobId, {
     status: 'running',
-    journeyId: cleanContent.id,
+    resourceId: resource.id,
+    ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
     message,
     startedAt: now(),
     startedBy: actor.email,
@@ -392,15 +435,17 @@ async function publish(actor, event) {
 
   try {
     const publisher = github();
-    const [currentIndex, publishedText, staged] = await Promise.all([
+    const [currentIndex, journeyText, homepageText, staged] = await Promise.all([
       publisher.getTextFile('index.html'),
       publisher.getTextFile('content/journeys/kanto-6d.json').catch(() => ''),
+      publisher.getTextFile('content/homepage.json').catch(() => ''),
       stagedAssetFiles(content),
     ]);
     let result;
     let alreadyCurrent = false;
+    const activeText = resource.id === 'homepage' ? homepageText : journeyText;
     try {
-      const publishedContent = publishedText ? stripInternal(validateJourney(JSON.parse(publishedText))) : null;
+      const publishedContent = activeText ? stripInternal(resource.validate(JSON.parse(activeText))) : null;
       alreadyCurrent = Boolean(publishedContent && canonicalJson(publishedContent) === canonicalJson(cleanContent));
     } catch {
       alreadyCurrent = false;
@@ -413,10 +458,22 @@ async function publish(actor, event) {
         alreadyCurrent: true,
       };
     } else {
-      const renderedIndex = renderSite(currentIndex, cleanContent);
+      let journeyContent;
+      let homepageContent;
+      try {
+        journeyContent = resource.id === 'kanto-6d'
+          ? cleanContent
+          : stripInternal(validateJourney(JSON.parse(journeyText)));
+        homepageContent = resource.id === 'homepage'
+          ? cleanContent
+          : stripInternal(validateHomepage(JSON.parse(homepageText)));
+      } catch {
+        throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中缺少 V32 所需的首页或行程数据文件，请先上传 V32 官网上传包', 409);
+      }
+      const renderedIndex = renderSite(currentIndex, journeyContent, homepageContent);
       const files = [
         { path: 'index.html', content: renderedIndex },
-        { path: 'content/journeys/kanto-6d.json', content: `${JSON.stringify(cleanContent, null, 2)}\n` },
+        { path: resource.path, content: `${JSON.stringify(cleanContent, null, 2)}\n` },
         ...staged.files,
       ];
       result = await publisher.publish(files, message);
@@ -439,7 +496,8 @@ async function publish(actor, event) {
       writeDoc(COLLECTIONS.publishes, jobId, {
         status: 'completed',
         result: response,
-        journeyId: cleanContent.id,
+        resourceId: resource.id,
+        ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
         commitSha: result.sha,
         commitUrl: result.commitUrl,
         message,
@@ -448,11 +506,12 @@ async function publish(actor, event) {
         publishedByUid: actor.uid,
         publishedByName: actor.name,
       }),
-      audit(actor, 'publish', { journeyId: cleanContent.id, commitSha: result.sha, alreadyCurrent, draftAdvanced }),
+      audit(actor, 'publish', { resourceId: resource.id, commitSha: result.sha, alreadyCurrent, draftAdvanced }),
     ];
     if (!draftAdvanced) {
-      completionTasks.push(writeDoc(COLLECTIONS.drafts, cleanContent.id, {
-        journeyId: cleanContent.id,
+      completionTasks.push(writeDoc(COLLECTIONS.drafts, resource.id, {
+        resourceId: resource.id,
+        ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
         content: cleanContent,
         revision,
         updatedAt: publishedAt,
@@ -468,7 +527,8 @@ async function publish(actor, event) {
     if (latestJob?.status === 'completed' && latestJob.result) return latestJob.result;
     await writeDoc(COLLECTIONS.publishes, jobId, {
       status: 'failed',
-      journeyId: cleanContent.id,
+      resourceId: resource.id,
+      ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
       message,
       failedAt: now(),
       failedBy: actor.email,
@@ -478,10 +538,15 @@ async function publish(actor, event) {
   }
 }
 
-async function history() {
+async function history(resourceId) {
+  const resource = contentResource(resourceId);
   try {
     const response = await db.collection(COLLECTIONS.publishes).orderBy('publishedAt', 'desc').limit(20).get();
-    return documentList(response).filter((item) => item.status !== 'running' && item.status !== 'failed');
+    return documentList(response).filter((item) => {
+      if (item.status === 'running' || item.status === 'failed') return false;
+      const itemResourceId = item.resourceId || item.journeyId || 'kanto-6d';
+      return itemResourceId === resource.id;
+    });
   } catch (error) {
     if (/not exist|不存在|DATABASE_COLLECTION_NOT_EXIST/i.test(error.message || '')) return [];
     throw error;
@@ -564,7 +629,7 @@ const ACTIONS = {
   saveDraft: { role: 'editor', handler: saveDraft },
   stageAsset: { role: 'editor', handler: stageAsset },
   publish: { role: 'admin', handler: publish },
-  history: { role: 'editor', handler: async () => ({ items: await history() }) },
+  history: { role: 'editor', handler: async (actor, event) => ({ items: await history(event.resourceId || 'kanto-6d') }) },
   listStaff: { role: 'admin', handler: async () => listStaff() },
   inviteStaff: { role: 'admin', handler: inviteStaff },
   revokeInvite: { role: 'admin', handler: revokeInvite },

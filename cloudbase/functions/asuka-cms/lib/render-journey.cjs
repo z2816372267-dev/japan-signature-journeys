@@ -1,5 +1,7 @@
 'use strict';
 
+const { renderHomepage } = require('./render-homepage.cjs');
+
 const MARKERS = Object.freeze({
   card: {
     start: '<!-- ASUKA_CMS:KANTO_CARD:START -->',
@@ -305,11 +307,12 @@ function replaceManagedBlock(html, marker, rendered) {
   return `${before}\n      ${rendered}\n      ${after}`;
 }
 
-function renderSite(html, data) {
+function renderSite(html, data, homepage) {
   let output = html;
   output = replaceManagedBlock(output, MARKERS.card, renderCard(data));
   output = replaceManagedBlock(output, MARKERS.journey, renderJourney(data));
   output = replaceManagedBlock(output, MARKERS.inquiry, renderInquiry(data));
+  if (homepage) output = renderHomepage(output, homepage);
   return output;
 }
 

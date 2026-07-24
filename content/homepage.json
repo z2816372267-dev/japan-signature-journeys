@@ -1,0 +1,214 @@
+{
+  "id": "homepage",
+  "schemaVersion": 1,
+  "hero": {
+    "eyebrow": "ASUKA TRAVEL · JAPAN WITH HEART",
+    "title": "把日本，\n过成一段自己的时光",
+    "copy": "不止抵达风景，更走进季节、地方与人的温度。\n飞鸟旅行，为你设计值得细细回味的日本旅程。",
+    "primaryLabel": "探索别样日本",
+    "secondaryLabel": "三种旅行方式",
+    "credit": "实景摄影 · 日本传统街町｜图片已存入网站本地目录",
+    "slides": [
+      {
+        "image": {
+          "webp480": "images/responsive/japan-traditional-street-v22-480.webp",
+          "webp960": "images/responsive/japan-traditional-street-v22-960.webp",
+          "webp1600": "images/responsive/japan-traditional-street-v22-1600.webp",
+          "fallback": "images/responsive/japan-traditional-street-v22-960.jpg",
+          "width": 2400,
+          "height": 1655,
+          "alt": "日本传统街町实景"
+        }
+      },
+      {
+        "image": {
+          "webp480": "images/responsive/kyoto-pagoda-v22-480.webp",
+          "webp960": "images/responsive/kyoto-pagoda-v22-960.webp",
+          "webp1600": "images/responsive/kyoto-pagoda-v22-1600.webp",
+          "fallback": "images/responsive/kyoto-pagoda-v22-960.jpg",
+          "width": 2400,
+          "height": 1602,
+          "alt": "京都古都街町与五重塔实景"
+        }
+      },
+      {
+        "image": {
+          "webp480": "images/responsive/japan-lanterns-v22-480.webp",
+          "webp960": "images/responsive/japan-lanterns-v22-960.webp",
+          "webp1600": "images/responsive/japan-lanterns-v22-1600.webp",
+          "fallback": "images/responsive/japan-lanterns-v22-960.jpg",
+          "width": 2400,
+          "height": 1600,
+          "alt": "日本夜间街町与灯笼实景"
+        }
+      }
+    ]
+  },
+  "intro": {
+    "eyebrow": "OUR WAY OF TRAVEL",
+    "title": "不是去过日本，\n而是真正读懂日本",
+    "lead": "飞鸟旅行相信，真正动人的旅程，来自正确季节里恰到好处的停留。",
+    "copy": "我们以日本四季为线索，用专业动线、地方美食、温泉旅宿与文化体验，组织每一段有节奏、有审美、也有温度的旅行。"
+  },
+  "selection": {
+    "eyebrow": "ASUKA SELECTION",
+    "title": "飞鸟之选",
+    "copy": "从正在打磨的完整行程，到值得收藏的季节方向；先从一幅风景，找到下一次出发。",
+    "items": [
+      {
+        "placeLatin": "KANTO",
+        "placeCn": "关东",
+        "kicker": "SIGNATURE JOURNEY · 6 DAYS",
+        "title": "关东 · 山海相逢",
+        "copy": "从富士湖畔、箱根山水到伊豆海岸与镰仓街町，让山、海、温泉与城市在六天里自然衔接。",
+        "ctaLabel": "查看关东山海6日",
+        "image": {
+          "webp480": "images/responsive/oishi-park-fuji-v22-480.webp",
+          "webp960": "images/responsive/oishi-park-fuji-v22-960.webp",
+          "webp1600": "images/responsive/oishi-park-fuji-v22-1600.webp",
+          "fallback": "images/responsive/oishi-park-fuji-v22-960.jpg",
+          "width": 2200,
+          "height": 1467,
+          "alt": "富士山与河口湖大石公园实景"
+        }
+      },
+      {
+        "placeLatin": "KANSAI",
+        "placeCn": "关西",
+        "kicker": "SEASONAL INSPIRATION",
+        "title": "关西 · 古都日常",
+        "copy": "在京都、大阪与奈良之间放慢脚步，让寺社、街町、庭园与地方滋味回到日常可感的尺度。",
+        "ctaLabel": "进入日本心旅行",
+        "image": {
+          "webp480": "images/responsive/japan-traditional-street-v22-480.webp",
+          "webp960": "images/responsive/japan-traditional-street-v22-960.webp",
+          "webp1600": "images/responsive/japan-traditional-street-v22-1600.webp",
+          "fallback": "images/responsive/japan-traditional-street-v22-960.jpg",
+          "width": 2400,
+          "height": 1655,
+          "alt": "日本古都传统街町实景"
+        }
+      },
+      {
+        "placeLatin": "TOHOKU",
+        "placeCn": "东北",
+        "kicker": "WINTER INSPIRATION",
+        "title": "东北 · 雪国慢行",
+        "copy": "循着山形、青森与仙台的冬日景色，把雪见温泉、山间聚落与东北风土编成一段从容慢旅。",
+        "ctaLabel": "进入日本心旅行",
+        "image": {
+          "webp480": "images/responsive/tohoku-snow-v22-480.webp",
+          "webp960": "images/responsive/tohoku-snow-v22-960.webp",
+          "webp1600": "images/responsive/tohoku-snow-v22-1600.webp",
+          "fallback": "images/responsive/tohoku-snow-v22-960.jpg",
+          "width": 2400,
+          "height": 1600,
+          "alt": "日本东北雪国聚落实景"
+        }
+      },
+      {
+        "placeLatin": "SHIKOKU",
+        "placeCn": "四国",
+        "kicker": "ISLAND INSPIRATION",
+        "title": "四国 · 海岛微光",
+        "copy": "沿着濑户内海的光线串联香川、爱媛与海岛，在艺术、温泉和海风之间留出真正的停顿。",
+        "ctaLabel": "进入日本心旅行",
+        "image": {
+          "webp480": "images/responsive/setouchi-sea-v22-480.webp",
+          "webp960": "images/responsive/setouchi-sea-v22-960.webp",
+          "webp1600": "images/responsive/setouchi-sea-v22-1600.webp",
+          "fallback": "images/responsive/setouchi-sea-v22-960.jpg",
+          "width": 2400,
+          "height": 1597,
+          "alt": "濑户内海岛屿与海面实景"
+        }
+      },
+      {
+        "placeLatin": "KYUSHU",
+        "placeCn": "九州",
+        "kicker": "ONSEN INSPIRATION",
+        "title": "九州 · 温泉南行",
+        "copy": "从福冈向南，在火山地貌、温泉乡与地方料理之间，感受九州热烈而松弛的旅行节奏。",
+        "ctaLabel": "进入日本心旅行",
+        "image": {
+          "webp480": "images/responsive/kyushu-city-v22-480.webp",
+          "webp960": "images/responsive/kyushu-city-v22-960.webp",
+          "webp1600": "images/responsive/kyushu-city-v22-1600.webp",
+          "fallback": "images/responsive/kyushu-city-v22-960.jpg",
+          "width": 2400,
+          "height": 1600,
+          "alt": "日本九州城市与山海实景"
+        }
+      },
+      {
+        "placeLatin": "HOKKAIDO",
+        "placeCn": "北海道",
+        "kicker": "SNOW INSPIRATION",
+        "title": "北海道 · 粉雪北境",
+        "copy": "在札幌、函馆与道央雪原之间，收藏北国冬色、温泉暖意与安静辽阔的自然时刻。",
+        "ctaLabel": "进入日本心旅行",
+        "image": {
+          "webp480": "images/responsive/hokkaido-snow-v22-480.webp",
+          "webp960": "images/responsive/hokkaido-snow-v22-960.webp",
+          "webp1600": "images/responsive/hokkaido-snow-v22-1600.webp",
+          "fallback": "images/responsive/hokkaido-snow-v22-960.jpg",
+          "width": 2400,
+          "height": 1622,
+          "alt": "北海道粉雪与冬日树林实景"
+        }
+      }
+    ]
+  },
+  "ways": {
+    "eyebrow": "THREE WAYS TO JAPAN",
+    "title": "选择你的出发方式",
+    "copy": "同一个日本，不止一种抵达方式。",
+    "items": [
+      {
+        "kicker": "01 · CURATED GROUPS",
+        "title": "日本心旅行",
+        "copy": "精致团跟团产品。以季节、地方文化与极上宿为核心，重新设计跟团旅行的体验。",
+        "ctaLabel": "进入八大地区",
+        "image": {
+          "webp480": "images/responsive/oishi-park-fuji-v22-480.webp",
+          "webp960": "images/responsive/oishi-park-fuji-v22-960.webp",
+          "webp1600": "images/responsive/oishi-park-fuji-v22-1600.webp",
+          "fallback": "images/responsive/oishi-park-fuji-v22-960.jpg",
+          "width": 2200,
+          "height": 1467,
+          "alt": "富士山与河口湖实景"
+        }
+      },
+      {
+        "kicker": "02 · BESPOKE JOURNEY",
+        "title": "个性化定制",
+        "copy": "从旅行日期、同行人到兴趣偏好，为你从零设计只属于这一次出发的日本。",
+        "ctaLabel": "开始填写需求",
+        "image": {
+          "webp480": "images/responsive/sakura-river-v22-480.webp",
+          "webp960": "images/responsive/sakura-river-v22-960.webp",
+          "webp1600": "images/responsive/sakura-river-v22-1600.webp",
+          "fallback": "images/responsive/sakura-river-v22-960.jpg",
+          "width": 2400,
+          "height": 1590,
+          "alt": "日本樱花实景"
+        }
+      },
+      {
+        "kicker": "03 · THEMED JOURNEYS",
+        "title": "主题鉴赏行",
+        "copy": "从动漫、花火到观光列车与亲子慢游，以一个兴趣主题打开更深入的日本。",
+        "ctaLabel": "浏览主题灵感",
+        "image": {
+          "webp480": "images/responsive/japan-lanterns-v22-480.webp",
+          "webp960": "images/responsive/japan-lanterns-v22-960.webp",
+          "webp1600": "images/responsive/japan-lanterns-v22-1600.webp",
+          "fallback": "images/responsive/japan-lanterns-v22-960.jpg",
+          "width": 2400,
+          "height": 1600,
+          "alt": "日本夜间街町与灯笼实景"
+        }
+      }
+    ]
+  }
+}

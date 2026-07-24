@@ -52,15 +52,16 @@
           <span><strong>飞鸟旅行</strong><small>CONTENT STUDIO</small></span>
         </div>
         <nav class="cms-nav" aria-label="后台功能">
-          <button class="nav-item active" data-tab="overview"><span>01</span>产品概览</button>
-          <button class="nav-item" data-tab="days"><span>02</span>每日行程</button>
-          <button class="nav-item" data-tab="highlights"><span>03</span>亮点与图片</button>
-          <button class="nav-item" data-tab="stays"><span>04</span>酒店与说明</button>
-          <button class="nav-item" data-tab="publish"><span>05</span>发布管理</button>
-          <button class="nav-item admin-only" data-tab="staff"><span>06</span>工作人员</button>
+          <button class="nav-item active" data-tab="home"><span>01</span>首页内容</button>
+          <button class="nav-item" data-tab="overview"><span>02</span>产品概览</button>
+          <button class="nav-item" data-tab="days"><span>03</span>每日行程</button>
+          <button class="nav-item" data-tab="highlights"><span>04</span>亮点与图片</button>
+          <button class="nav-item" data-tab="stays"><span>05</span>酒店与说明</button>
+          <button class="nav-item" data-tab="publish"><span>06</span>发布管理</button>
+          <button class="nav-item admin-only" data-tab="staff"><span>07</span>工作人员</button>
         </nav>
         <div class="sidebar-foot">
-          <small class="admin-version">V29.1 · 接送机排版修复</small>
+          <small class="admin-version">V32 · 首页统一管理</small>
           <a href="https://z2816372267-dev.github.io/japan-signature-journeys/" target="_blank" rel="noopener">打开官网 ↗</a>
           <button id="signOutButton" type="button">退出登录</button>
         </div>
@@ -70,8 +71,8 @@
         <header class="cms-topbar">
           <button class="mobile-menu" id="mobileMenu" type="button" aria-label="打开后台导航" aria-controls="cmsSidebar" aria-expanded="false">☰</button>
           <div>
-            <p id="sectionEyebrow">JOURNEY CONTENT</p>
-            <h1 id="sectionTitle">产品概览</h1>
+            <p id="sectionEyebrow">HOMEPAGE CONTENT</p>
+            <h1 id="sectionTitle">首页内容</h1>
           </div>
           <div class="topbar-actions">
             <span class="save-state" id="saveState"><i></i>内容已同步</span>
@@ -86,11 +87,11 @@
 
         <div class="workspace">
           <main class="editor-canvas" id="editorCanvas">
-            <div class="editor-loading" id="editorLoading"><span></span><p>正在读取最新行程内容…</p></div>
+            <div class="editor-loading" id="editorLoading"><span></span><p>正在读取官网首页最新内容…</p></div>
           </main>
           <aside class="preview-panel" id="previewPanel">
             <div class="preview-toolbar">
-              <div><small id="previewEyebrow">LIVE WEBSITE</small><strong id="previewTitle">产品概览预览</strong></div>
+              <div><small id="previewEyebrow">LIVE HOMEPAGE</small><strong id="previewTitle">首页实时预览</strong></div>
               <div class="device-switch" role="group" aria-label="预览尺寸">
                 <button class="active" data-device="desktop" type="button" aria-label="桌面预览">桌面</button>
                 <button data-device="mobile" type="button" aria-label="手机预览">手机</button>

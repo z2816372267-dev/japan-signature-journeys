@@ -1876,6 +1876,317 @@ button:disabled {
   padding: 20px 18px 30px;
 }
 
+.locked-layout-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  margin: -6px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid #d8d3c7;
+  border-left: 3px solid var(--green);
+  border-radius: 10px;
+  color: var(--muted);
+  background: #eeeae2;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.locked-layout-note strong {
+  color: var(--green-deep);
+  white-space: nowrap;
+}
+
+.preview-home-hero {
+  position: relative;
+  min-height: 390px;
+  display: flex;
+  align-items: flex-end;
+  padding: 46px 42px 40px;
+  overflow: hidden;
+  color: #fff;
+  background: #243b32 center / cover no-repeat;
+}
+
+.preview-home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(7,18,15,.84), rgba(7,18,15,.1) 78%);
+}
+
+.preview-home-hero-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 530px;
+}
+
+.preview-home-hero-copy > small {
+  display: block;
+  color: #eadbc1;
+  font-size: 7px;
+  letter-spacing: .2em;
+}
+
+.preview-home-hero h2 {
+  margin: 17px 0 14px;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 38px;
+  font-weight: 400;
+  line-height: 1.32;
+  letter-spacing: .08em;
+}
+
+.preview-home-hero p {
+  margin: 0;
+  color: rgba(255,255,255,.82);
+  font-size: 9px;
+  line-height: 1.9;
+}
+
+.preview-home-hero-copy > div {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  margin-top: 22px;
+  font-size: 8px;
+}
+
+.preview-home-hero-copy > div span {
+  padding: 10px 13px;
+  background: rgba(16,35,28,.82);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+}
+
+.preview-home-hero-copy > div b {
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(255,255,255,.55);
+  font-weight: 400;
+}
+
+.preview-home-hero > em {
+  position: absolute;
+  z-index: 1;
+  left: 18px;
+  bottom: 11px;
+  opacity: .62;
+  font-size: 6px;
+  font-style: normal;
+}
+
+.preview-home-content {
+  padding: 34px 36px 44px;
+  background: #fbfaf7;
+}
+
+.preview-home-intro {
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  gap: 34px;
+  padding-bottom: 44px;
+}
+
+.preview-home-intro small {
+  color: var(--gold);
+  font-size: 7px;
+  letter-spacing: .18em;
+}
+
+.preview-home-intro h3 {
+  margin: 9px 0 0;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.preview-home-intro > div:last-child {
+  padding: 5px 0 0 22px;
+  border-left: 1px solid #d5cec1;
+}
+
+.preview-home-intro strong,
+.preview-home-intro p {
+  display: block;
+  margin: 0;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.9;
+}
+
+.preview-home-intro p {
+  margin-top: 13px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.preview-home-selection,
+.preview-home-ways {
+  padding: 39px 0 5px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.preview-home-selection-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 23px;
+}
+
+.preview-home-selection-list article {
+  overflow: hidden;
+  border: 1px solid #e5e0d7;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.preview-home-selection-list article.active {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+}
+
+.preview-home-selection-list img {
+  width: 100%;
+  height: 112px;
+  display: block;
+  object-fit: cover;
+}
+
+.preview-home-selection-list article.active img {
+  height: 100%;
+  min-height: 200px;
+}
+
+.preview-home-selection-list article > div {
+  padding: 14px;
+}
+
+.preview-home-selection-list small,
+.preview-home-selection-list span {
+  display: block;
+  color: var(--gold);
+  font-size: 6px;
+  letter-spacing: .14em;
+}
+
+.preview-home-selection-list span {
+  margin-top: 9px;
+  color: #89908c;
+}
+
+.preview-home-selection-list h4,
+.preview-home-way-grid h4 {
+  margin: 6px 0;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.preview-home-selection-list p,
+.preview-home-way-grid p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 7px;
+  line-height: 1.65;
+}
+
+.preview-home-selection-list b,
+.preview-home-way-grid b {
+  font-size: 6px;
+  font-weight: 500;
+}
+
+.preview-home-way-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 23px;
+}
+
+.preview-home-way-grid article {
+  min-height: 220px;
+  display: flex;
+  align-items: flex-end;
+  position: relative;
+  overflow: hidden;
+  padding: 17px;
+  color: #fff;
+  background: #29443a center / cover no-repeat;
+}
+
+.preview-home-way-grid article::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(6,18,14,.9), rgba(6,18,14,.05) 72%);
+}
+
+.preview-home-way-grid article > div {
+  position: relative;
+  z-index: 1;
+}
+
+.preview-home-way-grid small {
+  font-size: 6px;
+  letter-spacing: .12em;
+}
+
+.preview-home-way-grid h4 {
+  font-size: 17px;
+}
+
+.preview-home-way-grid p {
+  color: rgba(255,255,255,.76);
+}
+
+.journey-preview.mobile .preview-home-hero {
+  min-height: 430px;
+  padding: 34px 23px;
+}
+
+.journey-preview.mobile .preview-home-hero h2 {
+  font-size: 30px;
+}
+
+.journey-preview.mobile .preview-home-content {
+  padding: 27px 20px 34px;
+}
+
+.journey-preview.mobile .preview-home-intro,
+.journey-preview.mobile .preview-home-selection-list article.active {
+  grid-template-columns: 1fr;
+}
+
+.journey-preview.mobile .preview-home-intro {
+  gap: 19px;
+}
+
+.journey-preview.mobile .preview-home-intro > div:last-child {
+  padding: 16px 0 0;
+  border-top: 1px solid #d5cec1;
+  border-left: 0;
+}
+
+.journey-preview.mobile .preview-home-selection-list,
+.journey-preview.mobile .preview-home-way-grid {
+  grid-template-columns: 1fr;
+}
+
+.journey-preview.mobile .preview-home-selection-list article.active {
+  grid-column: auto;
+}
+
+.journey-preview.mobile .preview-home-selection-list img,
+.journey-preview.mobile .preview-home-selection-list article.active img {
+  height: 150px;
+  min-height: 0;
+}
+
+.journey-preview.mobile .preview-home-way-grid article {
+  min-height: 210px;
+}
+
 .publish-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

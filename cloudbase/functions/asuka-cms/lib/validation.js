@@ -211,6 +211,71 @@ function validateJourney(data) {
   return data;
 }
 
+function validateHomepage(data) {
+  if (!data || typeof data !== 'object') throw cmsError('INVALID_CONTENT', '首页内容为空');
+  if (data.schemaVersion !== 1) throw cmsError('INVALID_CONTENT', '内容版本不受支持');
+  if (data.id !== 'homepage') throw cmsError('INVALID_CONTENT', '首页内容编号不正确');
+
+  requireText(data.hero?.eyebrow, '首页封面英文眉题', 100);
+  requireText(data.hero?.title, '首页封面标题', 100);
+  requireText(data.hero?.copy, '首页封面介绍', 500);
+  requireText(data.hero?.primaryLabel, '首页封面主按钮文字', 30);
+  requireText(data.hero?.secondaryLabel, '首页封面次按钮文字', 30);
+  requireText(data.hero?.credit, '首页封面图片说明', 180);
+  if (!Array.isArray(data.hero?.slides) || data.hero.slides.length !== 3) {
+    throw cmsError('INVALID_CONTENT', '首页封面必须保留3张轮播图片');
+  }
+  data.hero.slides.forEach((slide, index) => validateImage(slide?.image, `首页封面图片${index + 1}`));
+
+  requireText(data.intro?.eyebrow, '品牌介绍英文眉题', 80);
+  requireText(data.intro?.title, '品牌介绍标题', 100);
+  requireText(data.intro?.lead, '品牌介绍第一段', 400);
+  requireText(data.intro?.copy, '品牌介绍第二段', 500);
+
+  requireText(data.selection?.eyebrow, '飞鸟之选英文眉题', 80);
+  requireText(data.selection?.title, '飞鸟之选标题', 80);
+  requireText(data.selection?.copy, '飞鸟之选说明', 400);
+  if (!Array.isArray(data.selection?.items) || data.selection.items.length !== 6) {
+    throw cmsError('INVALID_CONTENT', '飞鸟之选必须保留6项内容');
+  }
+  data.selection.items.forEach((item, index) => {
+    const label = `飞鸟之选${index + 1}`;
+    requireText(item?.placeLatin, `${label}地区英文`, 30);
+    requireText(item?.placeCn, `${label}地区中文`, 20);
+    requireText(item?.kicker, `${label}英文眉题`, 80);
+    requireText(item?.title, `${label}标题`, 80);
+    requireText(item?.copy, `${label}说明`, 400);
+    requireText(item?.ctaLabel, `${label}按钮文字`, 30);
+    validateImage(item?.image, `${label}图片`);
+  });
+
+  requireText(data.ways?.eyebrow, '出发方式英文眉题', 80);
+  requireText(data.ways?.title, '出发方式标题', 80);
+  requireText(data.ways?.copy, '出发方式说明', 300);
+  if (!Array.isArray(data.ways?.items) || data.ways.items.length !== 3) {
+    throw cmsError('INVALID_CONTENT', '出发方式必须保留3项内容');
+  }
+  data.ways.items.forEach((item, index) => {
+    const label = `出发方式${index + 1}`;
+    requireText(item?.kicker, `${label}英文眉题`, 80);
+    requireText(item?.title, `${label}标题`, 80);
+    requireText(item?.copy, `${label}说明`, 400);
+    requireText(item?.ctaLabel, `${label}按钮文字`, 30);
+    validateImage(item?.image, `${label}图片`);
+  });
+
+  const serialized = JSON.stringify(data);
+  if (Buffer.byteLength(serialized, 'utf8') > 300 * 1024) {
+    throw cmsError('CONTENT_TOO_LARGE', '首页文字数据超过300KB限制');
+  }
+  return data;
+}
+
+function validateContent(data) {
+  if (data?.id === 'homepage') return validateHomepage(data);
+  return validateJourney(data);
+}
+
 function stripInternal(value) {
   if (Array.isArray(value)) return value.map(stripInternal);
   if (!value || typeof value !== 'object') return value;
@@ -235,5 +300,7 @@ module.exports = {
   normalizeEmail,
   stripInternal,
   synchronizeJourney,
+  validateContent,
+  validateHomepage,
   validateJourney,
 };
