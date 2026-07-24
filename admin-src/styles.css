@@ -2589,6 +2589,559 @@ button:disabled {
   }
 }
 
+/* V33 · Generic journey workspace */
+.nav-section-label {
+  display: block;
+  margin: 19px 18px 7px;
+  color: rgba(255, 255, 255, .4);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.cms-nav .nav-item--accent {
+  margin-top: 6px;
+  border: 1px solid rgba(210, 184, 128, .32);
+  color: #ead6af;
+  background: rgba(210, 184, 128, .08);
+}
+
+.journey-library-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+  padding: 19px 21px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.journey-library-actions > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.journey-library-actions strong {
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.journey-library-actions span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.journey-library-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+
+.journey-library-card {
+  display: grid;
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid rgba(38, 56, 48, .15);
+  border: 1px solid color-mix(in srgb, var(--journey-ink) 15%, transparent);
+  border-radius: 16px;
+  background: var(--journey-paper);
+  box-shadow: 0 14px 40px rgba(28, 42, 35, .06);
+}
+
+.journey-library-motif {
+  position: relative;
+  min-height: 88px;
+  overflow: hidden;
+  padding: 18px;
+  background: var(--journey-ink);
+  color: #fff;
+}
+
+.journey-library-motif::after {
+  position: absolute;
+  right: -24px;
+  bottom: -68px;
+  width: 150px;
+  height: 150px;
+  border: 1px solid rgba(255, 255, 255, .36);
+  border: 1px solid color-mix(in srgb, var(--journey-accent) 65%, transparent);
+  border-radius: 50%;
+  content: "";
+}
+
+.journey-library-motif > i {
+  position: absolute;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--journey-accent);
+  border-radius: 70% 10% 70% 10%;
+  opacity: .75;
+  transform: rotate(40deg);
+}
+
+.journey-library-motif > i:nth-child(1) {
+  right: 35px;
+  top: 21px;
+}
+
+.journey-library-motif > i:nth-child(2) {
+  right: 76px;
+  top: 45px;
+  transform: rotate(110deg) scale(.65);
+}
+
+.journey-library-motif > i:nth-child(3) {
+  right: 115px;
+  top: 18px;
+  transform: rotate(180deg) scale(.45);
+}
+
+.journey-library-motif small {
+  position: relative;
+  z-index: 1;
+  font: 8px Arial, sans-serif;
+  letter-spacing: .18em;
+  opacity: .7;
+}
+
+.journey-library-copy {
+  display: flex;
+  padding: 22px;
+  flex-direction: column;
+}
+
+.journey-library-status {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 7px;
+}
+
+.journey-library-status span,
+.journey-library-status b {
+  display: inline-flex;
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: #2e5b48;
+  background: #dcece4;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.journey-library-status span.hidden {
+  color: #786849;
+  background: #eee5d5;
+}
+
+.journey-library-status b {
+  color: #7d4a3e;
+  background: #f2dfda;
+}
+
+.journey-library-copy > small {
+  margin-top: 14px;
+  color: var(--journey-accent);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+
+.journey-library-copy h3 {
+  margin: 8px 0 6px;
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: .05em;
+  line-height: 1.5;
+}
+
+.journey-library-copy > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.journey-library-copy > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.journey-library-copy > div:last-child button {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 9px;
+}
+
+.journey-library-copy > div:last-child a {
+  margin-left: auto;
+  color: var(--journey-ink);
+  font-size: 9px;
+  text-decoration: none;
+}
+
+.journey-library-empty {
+  padding: 70px 25px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.season-template-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.season-template {
+  min-height: 120px;
+  padding: 13px 10px;
+  border: 1px solid rgba(38, 56, 48, .15);
+  border: 1px solid color-mix(in srgb, var(--season-ink) 15%, transparent);
+  border-radius: 12px;
+  background: var(--season-paper);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.season-template:hover {
+  transform: translateY(-2px);
+}
+
+.season-template.active {
+  border-color: var(--season-accent);
+  box-shadow: 0 0 0 2px rgba(169, 144, 103, .28);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--season-accent) 28%, transparent);
+}
+
+.season-template > span {
+  position: relative;
+  display: block;
+  height: 34px;
+  margin-bottom: 9px;
+  border-radius: 7px;
+  background: var(--season-ink);
+}
+
+.season-template i {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--season-accent);
+  border-radius: 70% 10% 70% 10%;
+  transform: rotate(38deg);
+}
+
+.season-template i:nth-child(1) {
+  top: 7px;
+  right: 12px;
+}
+
+.season-template i:nth-child(2) {
+  top: 17px;
+  right: 28px;
+  transform: rotate(95deg) scale(.7);
+}
+
+.season-template i:nth-child(3) {
+  top: 8px;
+  right: 44px;
+  transform: rotate(160deg) scale(.45);
+}
+
+.season-template strong {
+  display: block;
+  color: var(--season-ink);
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.season-template small {
+  display: block;
+  margin-top: 5px;
+  color: #5f6d66;
+  color: color-mix(in srgb, var(--season-ink) 68%, transparent);
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.day-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.day-tab-add {
+  border-style: dashed !important;
+}
+
+.day-manage-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -3px 0 17px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #eeebe4;
+}
+
+.day-manage-bar > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.day-manage-bar > div:first-child strong {
+  color: var(--red);
+  font: 9px Arial, sans-serif;
+  letter-spacing: .15em;
+}
+
+.day-manage-bar > div:first-child span {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-manage-bar > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+}
+
+.day-manage-bar button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.day-manage-bar button.danger {
+  color: #9e332a;
+  border-color: #d7b7b0;
+}
+
+.day-manage-bar button:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+.journey-create-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 17px;
+  margin-top: 24px;
+}
+
+.journey-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.journey-template-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.journey-template-mode label {
+  position: relative;
+  cursor: pointer;
+}
+
+.journey-template-mode input {
+  position: absolute;
+  opacity: 0;
+}
+
+.journey-template-mode span {
+  display: flex;
+  min-height: 86px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+  flex-direction: column;
+  justify-content: center;
+}
+
+.journey-template-mode input:checked + span {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(40, 73, 61, .12);
+}
+
+.journey-template-mode strong {
+  font-size: 12px;
+}
+
+.journey-template-mode small {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.template-safety-note {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #ddc997;
+  border-radius: 9px;
+  color: #765820;
+  background: #fff8e8;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.template-safety-note strong {
+  flex: 0 0 auto;
+}
+
+.preview-route-days {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 15px 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.preview-route-days > span {
+  display: flex;
+  min-height: 75px;
+  padding: 12px;
+  background: #f7f4ed;
+  flex-direction: column;
+}
+
+.preview-route-days small {
+  color: var(--preview-accent, var(--red));
+  font: 7px Arial, sans-serif;
+  letter-spacing: .12em;
+}
+
+.preview-route-days b {
+  margin-top: 6px;
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.preview-route-days i {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.journey-preview.preview-season-spring {
+  --preview-paper: #f7f0ed;
+  --preview-ink: #39433a;
+  --preview-accent: #b97f8b;
+}
+
+.journey-preview.preview-season-summer {
+  --preview-paper: #eef4f1;
+  --preview-ink: #1f3f45;
+  --preview-accent: #39717a;
+}
+
+.journey-preview.preview-season-autumn {
+  --preview-paper: #f2e7d8;
+  --preview-ink: #4a332c;
+  --preview-accent: #a95340;
+}
+
+.journey-preview.preview-season-winter {
+  --preview-paper: #f2f6f6;
+  --preview-ink: #29424c;
+  --preview-accent: #527886;
+}
+
+.journey-preview[class*="preview-season-"] .preview-content {
+  background: var(--preview-paper, #f3efe6);
+}
+
+.journey-preview[class*="preview-season-"] .preview-section-title small,
+.journey-preview[class*="preview-season-"] .preview-map-card > small,
+.journey-preview[class*="preview-season-"] .preview-booking small {
+  color: var(--preview-accent, var(--red));
+}
+
+.journey-preview[class*="preview-season-"] .preview-booking {
+  border-color: var(--preview-accent, var(--red));
+  background: var(--preview-ink, var(--green-deep));
+}
+
+@media (max-width: 1180px) {
+  .season-template-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .journey-library-grid,
+  .journey-create-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-library-card {
+    min-height: 255px;
+  }
+
+  .season-template-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .day-manage-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .day-manage-bar > div:last-child {
+    justify-content: start;
+  }
+}
+
+@media (max-width: 520px) {
+  .journey-library-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .journey-template-mode {
+    grid-template-columns: 1fr;
+  }
+
+  .season-template-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .preview-route-days {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

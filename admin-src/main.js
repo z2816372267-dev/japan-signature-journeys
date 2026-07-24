@@ -1,4 +1,5 @@
 import initialContent from '../content/journeys/kanto-6d.json';
+import initialCatalog from '../content/journeys/index.json';
 import initialHomepage from '../content/homepage.json';
 import { CMS_CONFIG } from './config.js';
 import {
@@ -9,11 +10,26 @@ import {
   signOut,
 } from './lib/api.js';
 import { formatBytes, prepareResponsiveImage } from './lib/images.js';
+import {
+  JOURNEY_ID_PATTERN,
+  REGIONS,
+  SEASONS,
+  addBlankDay,
+  cloneValue,
+  createJourneyFromTemplate,
+  duplicateDay,
+  moveDay,
+  normalizeJourney,
+  regionById,
+  removeDay,
+  seasonById,
+} from './lib/journey-template.js';
 
-const clone = (value) => (window.structuredClone ? structuredClone(value) : JSON.parse(JSON.stringify(value)));
+const clone = cloneValue;
 const DEMO_MODE = new URLSearchParams(location.search).get('demo') === '1';
+const initialJourney = normalizeJourney(initialContent);
 
-const RESOURCE_META = Object.freeze({
+const RESOURCE_META = {
   homepage: {
     label: '官网首页',
     shortLabel: '首页',
@@ -24,9 +40,9 @@ const RESOURCE_META = Object.freeze({
     label: '关东山海6日',
     shortLabel: '关东6日',
     defaultMessage: '更新关东6日行程内容',
-    initial: initialContent,
+    initial: initialJourney,
   },
-});
+};
 
 function createResourceState(initial) {
   return {
@@ -48,8 +64,10 @@ const state = {
   resourceId: 'homepage',
   resources: {
     homepage: createResourceState(initialHomepage),
-    'kanto-6d': createResourceState(initialContent),
+    'kanto-6d': createResourceState(initialJourney),
   },
+  journeys: clone(initialCatalog.journeys || []),
+  journeysLoaded: false,
   tab: 'home',
   selectedDay: 0,
   device: 'desktop',
@@ -106,6 +124,7 @@ const elements = {
 
 const TAB_COPY = {
   home: ['HOMEPAGE CONTENT', '首页内容'],
+  journeys: ['JOURNEY LIBRARY', '全部行程'],
   overview: ['JOURNEY CONTENT', '产品概览'],
   days: ['DAY BY DAY', '每日行程'],
   highlights: ['VISUAL STORY', '亮点与图片'],
@@ -116,6 +135,7 @@ const TAB_COPY = {
 
 const PREVIEW_COPY = {
   home: ['LIVE HOMEPAGE', '首页实时预览'],
+  journeys: ['JOURNEY LIBRARY', '行程状态预览'],
   overview: ['LIVE WEBSITE', '产品概览预览'],
   days: ['LIVE WEBSITE', '每日行程预览'],
   highlights: ['LIVE WEBSITE', '亮点与图片预览'],
@@ -145,8 +165,36 @@ function stripClientInternal(value) {
       .map(([key, item]) => [key, stripClientInternal(item)]));
 }
 
+function isJourneyResource(resourceId = state.resourceId) {
+  return resourceId !== 'homepage';
+}
+
+function registerJourneyResource(item, initial = null) {
+  const id = String(item?.id || initial?.id || '');
+  if (!JOURNEY_ID_PATTERN.test(id)) return null;
+  const title = String(item?.title || initial?.card?.title || id).replaceAll('\n', ' ');
+  RESOURCE_META[id] = {
+    label: title,
+    shortLabel: title.length > 12 ? `${title.slice(0, 12)}…` : title,
+    defaultMessage: `更新${title}行程`,
+    initial: initial ? normalizeJourney(initial) : null,
+  };
+  if (!state.resources[id]) state.resources[id] = createResourceState(RESOURCE_META[id].initial);
+  return state.resources[id];
+}
+
+initialCatalog.journeys?.forEach((item) => registerJourneyResource(
+  item,
+  item.id === initialJourney.id ? initialJourney : null,
+));
+
 function currentResourceMeta() {
-  return RESOURCE_META[state.resourceId];
+  return RESOURCE_META[state.resourceId] || {
+    label: state.resourceId,
+    shortLabel: state.resourceId,
+    defaultMessage: `更新${state.resourceId}`,
+    initial: null,
+  };
 }
 
 function localDraftKey(resourceId = state.resourceId) {
@@ -182,7 +230,7 @@ function setPath(path, value) {
 }
 
 function synchronizeContent(changedPath = '') {
-  if (state.resourceId !== 'kanto-6d') return;
+  if (!isJourneyResource()) return;
   const content = state.content;
   if (content.card && content.hero && (!changedPath || changedPath === 'card.title' || changedPath === 'card.kicker')) {
     content.hero.title = content.card.title;
@@ -195,6 +243,18 @@ function synchronizeContent(changedPath = '') {
       title: day.title,
       route: day.route,
     }));
+  }
+  if (changedPath === 'management.season') {
+    const season = seasonById(content.management.season);
+    content.management.seasonVariant = season.variant;
+  }
+  if (changedPath === 'regionId') {
+    const region = regionById(content.regionId);
+    Object.assign(content.management, {
+      regionCode: region.code,
+      regionName: region.name,
+      regionLatin: region.latin,
+    });
   }
 }
 
@@ -224,6 +284,39 @@ function field(label, path, options = {}) {
   </div>`;
 }
 
+function selectField(label, path, items, options = {}) {
+  const value = String(getPath(path) ?? '');
+  const full = options.full === false ? '' : ' full';
+  return `<div class="field${full}">
+    <label>${escapeHtml(label)}</label>
+    <select data-path="${escapeHtml(path)}">
+      ${items.map((item) => `<option value="${escapeHtml(item.value)}"${String(item.value) === value ? ' selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
+    </select>
+    ${options.help ? `<div class="field-help"><span>${escapeHtml(options.help)}</span><span></span></div>` : ''}
+  </div>`;
+}
+
+function numberField(label, path, options = {}) {
+  const value = Number(getPath(path) ?? options.min ?? 0);
+  const full = options.full === false ? '' : ' full';
+  return `<div class="field${full}">
+    <label>${escapeHtml(label)}</label>
+    <input data-path="${escapeHtml(path)}" data-value-type="number" type="number" min="${Number(options.min ?? 0)}" max="${Number(options.max ?? 9999)}" step="${Number(options.step ?? 1)}" value="${value}" />
+    ${options.help ? `<div class="field-help"><span>${escapeHtml(options.help)}</span><span></span></div>` : ''}
+  </div>`;
+}
+
+function seasonSelector() {
+  const selected = state.content.management?.season || 'all';
+  return `<div class="season-template-grid full">
+    ${SEASONS.map((season) => `<button class="season-template${season.id === selected ? ' active' : ''}" data-season-select="${season.id}" type="button" style="--season-paper:${season.palette[0]};--season-ink:${season.palette[1]};--season-accent:${season.palette[2]}">
+      <span><i></i><i></i><i></i></span>
+      <strong>${escapeHtml(season.label)}</strong>
+      <small>${escapeHtml(season.motif)}</small>
+    </button>`).join('')}
+  </div>`;
+}
+
 function arrayEditor(label, path, options = {}) {
   const items = getPath(path) || [];
   return `<div class="field full">
@@ -245,7 +338,7 @@ function imageUploader(label, path, image, help) {
     <div class="image-uploader" data-image-card="${escapeHtml(path)}">
       <div class="image-preview-thumb">
         ${preview ? `<img src="${escapeHtml(preview)}" alt="" />` : ''}
-        <span>${image?._assetId ? '新图片 · 待发布' : image ? '当前官网图片' : '暂未设置'}</span>
+        <span>${image?._templatePlaceholder ? '模板占位图 · 发布前请替换' : image?._assetId ? '新图片 · 待发布' : image ? '当前官网图片' : '暂未设置'}</span>
       </div>
       <div class="image-controls">
         ${image ? `<input data-path="${escapeHtml(altPath)}" data-max="120" maxlength="120" value="${escapeHtml(alt)}" aria-label="图片说明" placeholder="请填写图片内容说明" />` : `<input data-image-alt="${escapeHtml(path)}" maxlength="120" value="" aria-label="图片说明" placeholder="先填写图片内容说明" />`}
@@ -268,7 +361,7 @@ function renderHomepageEditor() {
   return `<div class="editor-section editor-section--homepage">
     ${demoBanner()}
     ${sectionIntro('HOMEPAGE CONTENT', '官网首页', '统一管理官网封面、品牌介绍、飞鸟之选和三种出发方式。桌面与手机使用同一份内容；版式、颜色、动画与按钮去向已锁定，不会被误改。')}
-    <aside class="locked-layout-note"><strong>已锁定设计</strong><span>导航、字体比例、区块间距、轮播动画、关东详情入口及三种出发方式的按钮去向均由系统保护。</span></aside>
+    <aside class="locked-layout-note"><strong>已锁定设计</strong><span>导航、字体比例、区块间距、轮播动画、首个精选行程入口及三种出发方式的按钮去向均由系统保护。</span></aside>
     ${formCard('首页封面', '封面继续使用3张本地响应式图片轮播；这里只维护游客看到的文字。', `<div class="form-grid">
       ${field('英文眉题', 'hero.eyebrow', { max: 100, full: false })}
       ${field('封面标题（换行处按回车）', 'hero.title', { max: 100, full: false, textarea: true })}
@@ -289,7 +382,7 @@ function renderHomepageEditor() {
       ${field('中文标题', 'selection.title', { max: 80, full: false })}
       ${field('区块说明', 'selection.copy', { max: 400, textarea: true })}
     </div>`)}
-    ${state.content.selection.items.map((item, index) => formCard(`飞鸟之选 ${String(index + 1).padStart(2, '0')} · ${item.title}`, index === 0 ? '第一项按钮固定进入关东山海6日详情；其余项目固定进入日本心旅行。' : '按钮去向已固定为日本心旅行，只需维护文案和图片。', `<div class="form-grid">
+    ${state.content.selection.items.map((item, index) => formCard(`飞鸟之选 ${String(index + 1).padStart(2, '0')} · ${item.title}`, index === 0 ? '第一项按钮固定进入当前关东山海6日独立详情页；其余项目固定进入日本心旅行。' : '按钮去向已固定为日本心旅行，只需维护文案和图片。', `<div class="form-grid">
       ${field('地区英文', `selection.items.${index}.placeLatin`, { max: 30, full: false })}
       ${field('地区中文', `selection.items.${index}.placeCn`, { max: 20, full: false })}
       ${field('英文眉题', `selection.items.${index}.kicker`, { max: 80, full: false })}
@@ -313,6 +406,81 @@ function renderHomepageEditor() {
   </div>`;
 }
 
+function journeyDisplayItem(item) {
+  const resource = state.resources[item.id];
+  const content = resource?.content;
+  if (!content) return item;
+  return {
+    ...item,
+    title: content.card?.title || item.title,
+    regionName: content.management?.regionName || item.regionName,
+    season: content.management?.season || item.season,
+    seasonVariant: content.management?.seasonVariant || item.seasonVariant,
+    visibility: content.management?.visibility || item.visibility,
+    daysCount: content.days?.length || item.daysCount,
+  };
+}
+
+function upsertJourneyListFromContent(content, extra = {}) {
+  const item = {
+    id: content.id,
+    productCode: content.productCode,
+    title: content.card?.title || content.id,
+    regionId: content.regionId,
+    regionCode: content.management?.regionCode,
+    regionName: content.management?.regionName,
+    season: content.management?.season || 'all',
+    seasonVariant: content.management?.seasonVariant || '',
+    visibility: content.management?.visibility || 'hidden',
+    order: Number(content.management?.order || 0),
+    daysCount: content.days?.length || 0,
+    href: `journeys/${content.id}/`,
+    ...extra,
+  };
+  const index = state.journeys.findIndex((entry) => entry.id === content.id);
+  if (index >= 0) state.journeys[index] = { ...state.journeys[index], ...item };
+  else state.journeys.push(item);
+  state.journeys.sort((left, right) => String(left.regionCode || '').localeCompare(String(right.regionCode || ''))
+    || Number(left.order || 0) - Number(right.order || 0));
+  registerJourneyResource(item, content);
+  return item;
+}
+
+function renderJourneysEditor() {
+  const journeys = state.journeys.map(journeyDisplayItem);
+  return `<div class="editor-section editor-section--journeys">
+    ${demoBanner()}
+    ${sectionIntro('JOURNEY LIBRARY', '全部行程', '每个行程拥有独立草稿、季节视觉、官网详情页和发布记录。可从关东6日框架新建，也可复制任意现有行程后继续调整。')}
+    <div class="journey-library-actions">
+      <div><strong>${journeys.length} 个行程</strong><span>已发布与隐藏草稿统一管理</span></div>
+      <button class="primary" data-new-journey type="button">＋ 新增行程</button>
+    </div>
+    <div class="journey-library-grid">
+      ${journeys.map((raw) => {
+    const item = journeyDisplayItem(raw);
+    const season = seasonById(item.season);
+    const region = regionById(item.regionId || item.regionCode);
+    const pageUrl = `${CMS_CONFIG.publicSiteUrl}journeys/${encodeURIComponent(item.id)}/`;
+    return `<article class="journey-library-card" style="--journey-paper:${season.palette[0]};--journey-ink:${season.palette[1]};--journey-accent:${season.palette[2]}">
+          <div class="journey-library-motif"><i></i><i></i><i></i><small>${escapeHtml(region.code)} · ${escapeHtml(region.latin)}</small></div>
+          <div class="journey-library-copy">
+            <div class="journey-library-status"><span class="${item.visibility === 'hidden' ? 'hidden' : ''}">${item.visibility === 'hidden' ? '官网隐藏' : '官网展示'}</span>${item.hasDraft ? '<b>有后台草稿</b>' : ''}</div>
+            <small>${escapeHtml(season.label)} · ${escapeHtml(item.seasonVariant || season.variant)}</small>
+            <h3>${withBreaks(item.title || item.id)}</h3>
+            <p>${Number(item.daysCount || 0)}天行程 · ${escapeHtml(item.productCode || item.id)}</p>
+            <div>
+              <button class="primary" data-open-journey="${escapeHtml(item.id)}" type="button">编辑行程</button>
+              <button class="secondary" data-copy-journey="${escapeHtml(item.id)}" type="button">复制</button>
+              ${item.visibility !== 'hidden' ? `<a href="${escapeHtml(pageUrl)}" target="_blank" rel="noopener">官网 ↗</a>` : ''}
+            </div>
+          </div>
+        </article>`;
+  }).join('')}
+    </div>
+    ${journeys.length ? '' : '<div class="journey-library-empty"><h3>还没有行程</h3><p>点击“新增行程”，从关东6日框架开始制作。</p></div>'}
+  </div>`;
+}
+
 function overviewFactEditor(index) {
   return `<div class="metric-editor"><small>OVERVIEW FACT ${index + 1}</small>
     <input data-path="overview.facts.${index}.label" data-max="30" maxlength="30" value="${escapeHtml(state.content.overview.facts[index]?.label || '')}" aria-label="概览信息${index + 1}英文标签" />
@@ -321,10 +489,26 @@ function overviewFactEditor(index) {
 }
 
 function renderOverviewEditor() {
+  const meta = currentResourceMeta();
+  const mapMode = state.content.map?.mode || 'summary';
   return `<div class="editor-section">
     ${demoBanner()}
-    ${sectionIntro('PRODUCT OVERVIEW', '关东山海6日', '这里控制产品卡片、详情页首屏、概览与右侧产品信息。文字保存为草稿后不会立即影响官网。')}
-    ${formCard('产品卡片', '游客在关东产品列表中首先看到的内容。', `<div class="form-grid">
+    ${sectionIntro('PRODUCT OVERVIEW', meta.label, '这里控制地区归属、四季模板、产品卡片、详情页首屏、概览与咨询信息。保存草稿不会影响官网，只有管理员发布后才会更新。')}
+    ${formCard('行程设置与四季模板', '季节只改变视觉元素、颜色与氛围，不会破坏已锁定的阅读顺序和手机排版。新行程默认“官网隐藏”，确认无误后再切换为展示。', `<div class="form-grid">
+      ${field('网址编号（创建后不可修改）', 'id', { max: 64, full: false, readonly: true })}
+      ${field('产品编号', 'productCode', { max: 32, full: false })}
+      ${selectField('所属地区', 'regionId', REGIONS.map((region) => ({ value: region.id, label: `${region.code} · ${region.name}｜${region.places}` })), { full: false })}
+      ${selectField('官网展示状态', 'management.visibility', [
+    { value: 'hidden', label: '官网隐藏（仅后台可见）' },
+    { value: 'published', label: '官网展示' },
+  ], { full: false })}
+      ${seasonSelector()}
+      ${field('季节主题说明', 'management.seasonVariant', { max: 40, full: false, help: '例如：樱花与新绿、枫狩与金秋。' })}
+      ${field('适合月份', 'management.travelMonths', { max: 40, full: false, help: '例如：3月下旬—4月中旬。' })}
+      ${numberField('地区内排序', 'management.order', { min: 0, max: 9999, full: false, help: '数字越小，在官网地区列表中越靠前。' })}
+      ${numberField('咨询人数上限', 'booking.maxGuests', { min: 1, max: 50, full: false })}
+    </div>`)}
+    ${formCard('产品卡片', '游客在对应地区的行程列表中首先看到的内容。', `<div class="form-grid">
       ${field('英文眉题', 'card.kicker', { max: 80, full: false })}
       ${field('产品标题（换行处按回车）', 'card.title', { max: 80, full: false, textarea: true })}
       ${field('产品摘要', 'card.summary', { max: 300, textarea: true })}
@@ -344,11 +528,17 @@ function renderOverviewEditor() {
       ${field('概览说明', 'overview.copy', { max: 500, textarea: true, size: 'long' })}
       <div class="metric-grid full">${state.content.overview.facts.map((_, index) => overviewFactEditor(index)).join('')}</div>
     </div>`)}
-    ${formCard('行程地图', '地图图片保持已校准版本；这里维护地图标题和说明。逐日路线会自动跟随“每日行程”。', `<div class="form-grid">
+    ${formCard('行程地图', '逐日路线会自动跟随“每日行程”。一般行程选择“路线摘要”即可；已有专业地图或上传一张地图时可切换其他方式。', `<div class="form-grid">
+      ${selectField('地图展示方式', 'map.mode', [
+    { value: 'summary', label: '路线摘要（推荐，无需地图图片）' },
+    { value: 'image', label: '上传地图图片' },
+    ...(state.content.map?.desktop && state.content.map?.mobile ? [{ value: 'legacy', label: '沿用当前桌面／手机地图' }] : []),
+  ], { full: false })}
       ${field('地图标题', 'map.title', { max: 100, full: false })}
       ${field('地图替代文字', 'map.alt', { max: 220, full: false })}
       ${field('地图介绍', 'map.copy', { max: 700, textarea: true, size: 'long' })}
       ${field('地图注释', 'map.caption', { max: 400, textarea: true })}
+      ${mapMode === 'image' ? imageUploader('地图图片', 'map.image', state.content.map.image, '建议横图；系统会生成手机与桌面响应式版本。') : ''}
     </div>`)}
     ${formCard('产品信息', '用于详情页右侧咨询卡片；咨询卡标题自动跟随产品标题。', `<div class="form-grid">
       ${field('产品归属', 'booking.productGroup', { max: 100, full: false })}
@@ -356,6 +546,10 @@ function renderOverviewEditor() {
       ${field('出发日期', 'booking.departure', { max: 80, full: false })}
       ${field('参考价格', 'booking.price', { max: 80, full: false })}
       ${field('旅行方式', 'booking.travelStyle', { max: 80, full: false })}
+    </div>`)}
+    ${formCard('搜索与分享信息', '用于浏览器标题、搜索结果和社交分享说明。', `<div class="form-grid">
+      ${field('网页标题', 'seo.title', { max: 100, full: false })}
+      ${field('网页说明', 'seo.description', { max: 220, textarea: true })}
     </div>`)}
   </div>`;
 }
@@ -373,12 +567,23 @@ function metricEditor(dayPath, key, eyebrow, label) {
 }
 
 function renderDaysEditor() {
+  state.selectedDay = Math.max(0, Math.min(state.selectedDay, state.content.days.length - 1));
   const day = state.content.days[state.selectedDay];
   const path = `days.${state.selectedDay}`;
   return `<div class="editor-section">
     ${demoBanner()}
-    ${sectionIntro('DAY BY DAY', '每日行程', '逐日编辑标题、路线、景点、文字、图片、行车里程与预计驾驶时间。里程和时间均指当天专车移动，不含游览、用餐和休息。')}
-    <div class="day-tabs">${state.content.days.map((item, index) => `<button class="${index === state.selectedDay ? 'active' : ''}" data-select-day="${index}" type="button"><strong>DAY ${escapeHtml(item.number)}</strong><span>${escapeHtml(item.title.slice(0, 6))}</span></button>`).join('')}</div>
+    ${sectionIntro('DAY BY DAY', `每日行程 · 共${state.content.days.length}天`, '可新增、复制、移动或删除天数；系统会自动重排 DAY 编号，并同步官网路线摘要、晚数和行程时长。')}
+    <div class="day-tabs">${state.content.days.map((item, index) => `<button class="${index === state.selectedDay ? 'active' : ''}" data-select-day="${index}" type="button"><strong>DAY ${escapeHtml(item.number)}</strong><span>${escapeHtml((item.title || '待填写').slice(0, 8))}</span></button>`).join('')}<button class="day-tab-add" data-day-action="append" type="button" aria-label="在末尾新增一天">＋<span>新增</span></button></div>
+    <div class="day-manage-bar">
+      <div><strong>DAY ${escapeHtml(day.number)}</strong><span>${escapeHtml(day.title || '尚未填写标题')}</span></div>
+      <div>
+        <button data-day-action="up" type="button"${state.selectedDay === 0 ? ' disabled' : ''}>↑ 上移</button>
+        <button data-day-action="down" type="button"${state.selectedDay === state.content.days.length - 1 ? ' disabled' : ''}>↓ 下移</button>
+        <button data-day-action="duplicate" type="button">复制当天</button>
+        <button data-day-action="add-after" type="button">＋ 后插一天</button>
+        <button class="danger" data-day-action="remove" type="button"${state.content.days.length === 1 ? ' disabled' : ''}>删除</button>
+      </div>
+    </div>
     ${formCard(`DAY ${day.number} · 基本内容`, '修改后右侧会立即显示当天预览。', `<div class="form-grid">
       ${field('当天标题', `${path}.title`, { max: 80, full: false })}
       ${field('当天路线', `${path}.route`, { max: 120, full: false })}
@@ -437,6 +642,8 @@ function renderStaysEditor() {
 
 function renderPublishEditor() {
   const meta = currentResourceMeta();
+  const isHomepage = state.resourceId === 'homepage';
+  const liveUrl = isHomepage ? CMS_CONFIG.publicSiteUrl : `${CMS_CONFIG.publicSiteUrl}journeys/${encodeURIComponent(state.resourceId)}/`;
   const dirtyText = state.dirty ? '当前有尚未保存或发布的修改' : '当前草稿与最近保存状态一致';
   const history = state.history.length
     ? state.history.map((item) => `<div class="history-item"><div><strong>${escapeHtml(item.message || meta.defaultMessage)}</strong><span>${escapeHtml(item.publishedByName || item.publishedBy || '')} · ${formatDate(item.publishedAt)}</span></div><a href="${escapeHtml(item.commitUrl)}" target="_blank" rel="noopener">${escapeHtml(String(item.commitSha || '').slice(0, 7))} ↗</a></div>`).join('')
@@ -446,8 +653,8 @@ function renderPublishEditor() {
     ${sectionIntro('PUBLISH CENTER', `发布管理 · ${meta.shortLabel}`, `当前管理的是“${meta.label}”。草稿仅在后台可见；点击发布后，系统会生成静态官网文件并提交到 GitHub，GitHub Pages 通常会在1—3分钟内更新。`)}
     <div class="publish-grid">
       <section class="publish-card"><small>DRAFT STATUS</small><h3>${state.dirty ? '有待处理修改' : '草稿已保存'}</h3><p>${dirtyText}</p><button class="secondary" data-save-draft type="button">保存当前草稿</button></section>
-      <section class="publish-card"><small>LIVE WEBSITE</small><h3>飞鸟旅行官网</h3><p>发布不会让游客依赖后台数据库，官网继续以静态文件高速加载。</p><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${CMS_CONFIG.publicSiteUrl}" target="_blank" rel="noopener">查看官网 ↗</a></section>
-      <section class="publish-card full"><small>ONE-CLICK PUBLISH</small><h3>确认无误后更新${meta.label}</h3><p>系统会一并提交当前文字、响应式图片和静态页面。首页与关东行程各自保存草稿和版本，不会相互覆盖。</p><button class="primary admin-only" data-open-publish type="button">检查并发布官网</button></section>
+      <section class="publish-card"><small>LIVE WEBSITE</small><h3>${isHomepage ? '飞鸟旅行官网' : '独立行程页'}</h3><p>发布不会让游客依赖后台数据库，官网继续以静态文件高速加载。</p><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(liveUrl)}" target="_blank" rel="noopener">查看官网 ↗</a></section>
+      <section class="publish-card full"><small>ONE-CLICK PUBLISH</small><h3>确认无误后更新${meta.label}</h3><p>${isHomepage ? '系统只更新官网首页内容；各个行程的独立草稿与详情页不会被覆盖。' : '系统会提交当前文字、响应式图片、独立行程页和首页地区目录；其他行程不会被覆盖。'}</p><button class="primary admin-only" data-open-publish type="button">检查并发布官网</button></section>
       <section class="publish-card full"><small>PUBLISH HISTORY</small><h3>最近发布记录</h3><div class="history-list">${history}</div></section>
     </div>
   </div>`;
@@ -477,6 +684,7 @@ function demoBanner() {
 function renderEditor() {
   const renderers = {
     home: renderHomepageEditor,
+    journeys: renderJourneysEditor,
     overview: renderOverviewEditor,
     days: renderDaysEditor,
     highlights: renderHighlightsEditor,
@@ -492,10 +700,21 @@ function renderEditor() {
 function bindEditorEvents() {
   elements.editorCanvas.querySelectorAll('[data-path]').forEach((control) => {
     control.addEventListener('input', () => {
-      setPath(control.dataset.path, control.value);
+      const value = control.dataset.valueType === 'number' ? Number(control.value) : control.value;
+      setPath(control.dataset.path, value);
       const counter = elements.editorCanvas.querySelector(`[data-counter-for="${CSS.escape(control.dataset.path)}"]`);
       if (counter) counter.textContent = `${control.value.length}/${control.dataset.max}`;
       markDirty();
+      if (['management.season', 'map.mode', 'regionId'].includes(control.dataset.path)) renderEditor();
+    });
+  });
+
+  elements.editorCanvas.querySelectorAll('[data-season-select]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setPath('management.season', button.dataset.seasonSelect);
+      synchronizeContent('management.season');
+      markDirty();
+      renderEditor();
     });
   });
 
@@ -535,12 +754,50 @@ function bindEditorEvents() {
     });
   });
 
+  elements.editorCanvas.querySelectorAll('[data-day-action]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.dayAction;
+      let changed = false;
+      if (action === 'append') {
+        changed = addBlankDay(state.content);
+        if (changed) state.selectedDay = state.content.days.length - 1;
+      } else if (action === 'add-after') {
+        changed = addBlankDay(state.content, state.selectedDay + 1);
+        if (changed) state.selectedDay += 1;
+      } else if (action === 'duplicate') {
+        changed = duplicateDay(state.content, state.selectedDay);
+        if (changed) state.selectedDay += 1;
+      } else if (action === 'up') {
+        changed = moveDay(state.content, state.selectedDay, state.selectedDay - 1);
+        if (changed) state.selectedDay -= 1;
+      } else if (action === 'down') {
+        changed = moveDay(state.content, state.selectedDay, state.selectedDay + 1);
+        if (changed) state.selectedDay += 1;
+      } else if (action === 'remove') {
+        if (!confirm(`确定删除 DAY ${state.content.days[state.selectedDay].number} 吗？`)) return;
+        changed = removeDay(state.content, state.selectedDay);
+        state.selectedDay = Math.min(state.selectedDay, state.content.days.length - 1);
+      }
+      if (!changed) return showToast(state.content.days.length >= 30 ? '最多支持30天行程' : '至少保留1天', 'error');
+      markDirty();
+      renderEditor();
+      schedulePreview();
+    });
+  });
+
   elements.editorCanvas.querySelectorAll('[data-image-upload]').forEach((input) => {
     input.addEventListener('change', () => handleImageUpload(input));
   });
 
   elements.editorCanvas.querySelectorAll('[data-save-draft]').forEach((button) => button.addEventListener('click', saveDraft));
   elements.editorCanvas.querySelectorAll('[data-open-publish]').forEach((button) => button.addEventListener('click', openPublishModal));
+  elements.editorCanvas.querySelectorAll('[data-new-journey]').forEach((button) => button.addEventListener('click', () => openJourneyModal()));
+  elements.editorCanvas.querySelectorAll('[data-open-journey]').forEach((button) => {
+    button.addEventListener('click', () => selectJourney(button.dataset.openJourney));
+  });
+  elements.editorCanvas.querySelectorAll('[data-copy-journey]').forEach((button) => {
+    button.addEventListener('click', () => openJourneyModal(button.dataset.copyJourney));
+  });
 
   const staffForm = elements.editorCanvas.querySelector('#staffInviteForm');
   if (staffForm) staffForm.addEventListener('submit', inviteStaff);
@@ -606,23 +863,45 @@ function validateJourneyForPublish() {
   synchronizeContent();
   const errors = [];
   const content = state.content;
+  if (!JOURNEY_ID_PATTERN.test(content.id || '')) errors.push('网址编号格式不正确');
+  if (!content.productCode?.trim()) errors.push('产品编号不能为空');
+  if (!REGIONS.some((region) => region.id === content.regionId)) errors.push('请选择所属地区');
+  if (!SEASONS.some((season) => season.id === content.management?.season)) errors.push('请选择季节模板');
+  if (!content.management?.seasonVariant?.trim() || !content.management?.travelMonths?.trim()) errors.push('季节主题与适合月份不能为空');
   if (!content.card?.title?.trim()) errors.push('产品标题不能为空');
   if (!content.card?.summary?.trim()) errors.push('产品摘要不能为空');
-  if (!content.hero?.copy?.trim()) errors.push('首屏介绍不能为空');
+  if (!content.hero?.copy?.trim() || !content.hero?.image?.alt || !content.hero?.image?.webp480 || !content.hero?.image?.fallback || content.hero.image._templatePlaceholder) errors.push('首屏介绍和图片必须完整，并替换模板占位图');
   if (!content.overview?.title?.trim() || !content.overview?.copy?.trim() || !content.overview?.route?.trim()) errors.push('行程概览信息不完整');
-  if (content.overview?.facts?.length !== 4 || content.overview.facts.some((fact) => !fact.label?.trim() || !fact.value?.trim())) errors.push('行程概览的4项信息必须填写完整');
+  if (!content.overview?.facts?.length || content.overview.facts.length > 8 || content.overview.facts.some((fact) => !fact.label?.trim() || !fact.value?.trim())) errors.push('行程概览的1—8项信息必须填写完整');
   if (!content.map?.title?.trim() || !content.map?.copy?.trim() || !content.map?.caption?.trim() || !content.map?.alt?.trim()) errors.push('行程地图标题与说明不完整');
-  if (content.highlights?.items?.length !== 4 || content.highlights.items.some((item) => !item.title?.trim() || !item.eyebrow?.trim() || !item.image?.alt)) errors.push('4项行程亮点必须填写完整');
+  if (content.map?.mode === 'image' && (!content.map.image?.alt || !content.map.image?.webp480 || !content.map.image?.fallback)) errors.push('地图图片信息不完整');
+  if (!content.highlights?.items?.length || content.highlights.items.length > 8 || content.highlights.items.some((item) => !item.title?.trim() || !item.eyebrow?.trim() || !item.image?.alt || item.image._templatePlaceholder)) errors.push('1—8项行程亮点必须填写完整，并替换模板占位图');
   if (!content.stays?.groups?.length || content.stays.groups.some((group) => !group.title?.trim() || !group.hotels?.length)) errors.push('酒店甄选信息不完整');
   if (!content.notes?.items?.length || content.notes.items.some((item) => !item.title?.trim() || !item.copy?.trim())) errors.push('行程说明信息不完整');
-  if (content.days.length !== 6) errors.push('必须保留6天行程');
-  content.days.forEach((day, index) => {
-    if (!day.title.trim()) errors.push(`第${index + 1}天标题不能为空`);
-    if (!day.story.trim()) errors.push(`第${index + 1}天行程描述不能为空`);
+  if (!Array.isArray(content.days) || content.days.length < 1 || content.days.length > 30) errors.push('行程必须包含1—30天');
+  content.days?.forEach((day, index) => {
+    if (!day.title?.trim() || !day.route?.trim()) errors.push(`第${index + 1}天标题和路线不能为空`);
+    if (!day.story?.trim()) errors.push(`第${index + 1}天行程描述不能为空`);
+    if (!day.stops?.length || day.stops.some((item) => !item.trim())) errors.push(`第${index + 1}天停靠点不能为空`);
     if (!day.distance?.value?.trim()) errors.push(`第${index + 1}天行车里程不能为空`);
     if (!day.duration?.value?.trim()) errors.push(`第${index + 1}天预计驾驶时间不能为空`);
+    if (!day.activity?.value?.trim() || !day.comfort?.value?.trim()) errors.push(`第${index + 1}天体力与舒适度不能为空`);
+    if (!day.meals?.breakfast?.trim() || !day.meals?.lunch?.trim() || !day.meals?.dinner?.trim() || !day.hotel?.trim()) errors.push(`第${index + 1}天餐食与住宿不能为空`);
     if (day.image && (!day.image.alt || !day.image.webp480 || !day.image.fallback)) errors.push(`第${index + 1}天图片信息不完整`);
   });
+  if (!content.booking?.productGroup?.trim() || !content.booking?.currentStatus?.trim() || !content.booking?.departure?.trim() || !content.booking?.price?.trim() || !content.booking?.travelStyle?.trim()) errors.push('产品咨询信息不完整');
+  if (!Number.isInteger(Number(content.booking?.maxGuests)) || Number(content.booking.maxGuests) < 1 || Number(content.booking.maxGuests) > 50) errors.push('咨询人数上限须为1—50人');
+  if (!content.seo?.title?.trim() || !content.seo?.description?.trim()) errors.push('搜索与分享信息不完整');
+  return errors;
+}
+
+function validateDraftForSave() {
+  if (state.resourceId === 'homepage') return [];
+  const errors = [];
+  if (!JOURNEY_ID_PATTERN.test(state.content?.id || '')) errors.push('网址编号格式不正确');
+  if (!state.content?.productCode?.trim()) errors.push('产品编号不能为空');
+  if (!state.content?.card?.title?.trim()) errors.push('产品标题不能为空');
+  if (!Array.isArray(state.content?.days) || !state.content.days.length || state.content.days.length > 30) errors.push('行程须保留1—30天');
   return errors;
 }
 
@@ -655,10 +934,11 @@ function validateContentForPublish() {
 async function saveDraft() {
   const resourceId = state.resourceId;
   const resource = state.resources[resourceId];
-  const errors = validateContentForPublish();
+  const errors = validateDraftForSave();
   if (errors.length) return showToast(errors[0], 'error');
   if (DEMO_MODE) {
     resource.dirty = false;
+    if (isJourneyResource(resourceId)) upsertJourneyListFromContent(resource.content, { hasDraft: true });
     saveLocalDraft(resourceId);
     if (resourceId === state.resourceId) {
       updateSaveState();
@@ -674,6 +954,7 @@ async function saveDraft() {
     const result = await callCms('saveDraft', { resourceId, content: resource.content, revision: resource.revision });
     resource.revision = Number(result.revision) || resource.revision;
     resource.dirty = false;
+    if (isJourneyResource(resourceId)) upsertJourneyListFromContent(resource.content, { hasDraft: true });
     saveLocalDraft(resourceId);
     if (resourceId === state.resourceId) {
       updateSaveState(`已保存 ${formatTime(result.savedAt)}`);
@@ -796,9 +1077,32 @@ function renderHomepagePreview(data) {
     </div>`;
 }
 
+function renderJourneysPreview() {
+  const items = state.journeys.map(journeyDisplayItem);
+  const visible = items.filter((item) => item.visibility !== 'hidden');
+  const drafts = items.filter((item) => item.hasDraft || state.resources[item.id]?.dirty);
+  const regions = new Set(items.map((item) => item.regionId || item.regionCode).filter(Boolean));
+  return `<header class="preview-system-head">
+      <span class="preview-system-badge">内部行程目录</span>
+      <small>JOURNEY LIBRARY</small><h2>${items.length}个行程 · ${regions.size}个地区</h2><p>这里汇总后台行程状态，不会作为官网页面直接展示。</p>
+    </header>
+    <div class="preview-system-content">
+      <div class="preview-status-grid">
+        <article><small>ALL JOURNEYS</small><strong>${items.length}个</strong><span>后台全部行程</span></article>
+        <article><small>ON WEBSITE</small><strong>${visible.length}个</strong><span>官网当前展示</span></article>
+        <article><small>WITH DRAFTS</small><strong>${drafts.length}个</strong><span>有草稿或本机修改</span></article>
+      </div>
+      <section class="preview-system-card"><small>REGIONAL PRODUCTS</small><h3>行程状态</h3><div class="preview-team-list">${items.map((item) => `<div><span><strong>${escapeHtml(String(item.title || item.id).replaceAll('\n', ' '))}</strong><small>${escapeHtml(item.regionName || regionById(item.regionId).name)} · ${Number(item.daysCount || 0)}天</small></span><b>${item.visibility === 'hidden' ? '官网隐藏' : '官网展示'}</b></div>`).join('')}</div></section>
+    </div>`;
+}
+
 function renderOverviewPreview(data) {
   const hero = currentImageUrl('hero.image', data.hero.image);
-  const mapImage = imageUrl(state.device === 'mobile' ? data.map.mobile : data.map.desktop);
+  const mapImage = data.map.mode === 'image'
+    ? currentImageUrl('map.image', data.map.image)
+    : data.map.mode === 'legacy'
+      ? imageUrl(state.device === 'mobile' ? data.map.mobile : data.map.desktop)
+      : '';
   const facts = data.overview.facts || [];
   const bookingItems = [
     ['CURRENT STATUS', data.booking.currentStatus],
@@ -807,13 +1111,13 @@ function renderOverviewPreview(data) {
     ['TRAVEL STYLE', data.booking.travelStyle],
   ];
   return `<section class="preview-hero"${hero ? ` style="background-image:url('${escapeHtml(hero)}')"` : ''}>
-      <div class="preview-hero-content"><small>${escapeHtml(data.hero.kicker)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${escapeHtml(data.hero.copy)}</p><div class="preview-tags">${data.hero.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div></div>
+      <div class="preview-hero-content"><small>${escapeHtml(data.hero.kicker)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${escapeHtml(data.hero.copy)}</p><div class="preview-tags">${(data.hero.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div></div>
     </section>
     <div class="preview-content">
       ${previewSectionTitle('JOURNEY OVERVIEW', data.overview.title, data.overview.copy)}
       <div class="preview-route">${escapeHtml(data.overview.route)}</div>
       <div class="preview-facts">${facts.map((fact) => `<div><small>${escapeHtml(fact.label)}</small><strong>${escapeHtml(fact.value)}</strong></div>`).join('')}</div>
-      <section class="preview-map-card"><small>ROUTE MAP</small><h4>${escapeHtml(data.map.title)}</h4><p>${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : ''}<span>${escapeHtml(data.map.caption)}</span></section>
+      <section class="preview-map-card"><small>ROUTE MAP · ${escapeHtml(data.map.mode === 'summary' ? '路线摘要' : '地图图片')}</small><h4>${escapeHtml(data.map.title)}</h4><p>${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : `<div class="preview-route-days">${data.map.days.map((day) => `<span><small>DAY ${escapeHtml(day.number)}</small><b>${escapeHtml(day.title || '待填写')}</b><i>${escapeHtml(day.route || '待填写路线')}</i></span>`).join('')}</div>`}<span>${escapeHtml(data.map.caption)}</span></section>
       <aside class="preview-booking">
         <div><small>TRIP INFORMATION</small><h4>${withBreaks(data.booking.title || data.card.title)}</h4><p>${escapeHtml(data.hero.status)}</p></div>
         <dl>${bookingItems.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '待公布')}</dd></div>`).join('')}</dl>
@@ -880,7 +1184,7 @@ function renderPublishPreview(data) {
     ? errors.slice(0, 4).map((error) => `<li class="warning">${escapeHtml(error)}</li>`).join('')
     : isHomepage
       ? '<li>首页4个内容板块字段完整</li><li>3张封面、6项飞鸟之选和3种出发方式图片完整</li><li>按钮去向与轮播动画已锁定</li><li>官网继续使用静态文件高速加载</li>'
-      : '<li>六天行程字段完整</li><li>行车里程与预计驾驶时间完整</li><li>响应式图片路径已准备</li><li>官网继续使用静态文件高速加载</li>';
+      : `<li>${data.days.length}天行程字段完整</li><li>${escapeHtml(seasonById(data.management?.season).label)}视觉模板已应用</li><li>响应式图片与独立静态页已准备</li><li>官网继续使用静态文件高速加载</li>`;
   const contentStatus = isHomepage
     ? [`${data.selection.items.length}项飞鸟之选`, `${data.hero.slides.length}张封面 · ${data.ways.items.length}种出发方式`]
     : [`${data.days.length}天行程`, `${data.highlights.items.length}项亮点 · ${data.stays.groups.length}组住宿`];
@@ -920,6 +1224,7 @@ function renderStaffPreview() {
 
 const previewRenderers = {
   home: renderHomepagePreview,
+  journeys: renderJourneysPreview,
   overview: renderOverviewPreview,
   days: renderDaysPreview,
   highlights: renderHighlightsPreview,
@@ -932,7 +1237,8 @@ function renderPreview() {
   const [eyebrow, title] = PREVIEW_COPY[state.tab];
   elements.previewEyebrow.textContent = eyebrow;
   elements.previewTitle.textContent = title;
-  elements.journeyPreview.className = `journey-preview preview-${state.tab}${state.device === 'mobile' ? ' mobile' : ''}`;
+  const season = isJourneyResource() ? state.content?.management?.season || 'all' : 'all';
+  elements.journeyPreview.className = `journey-preview preview-${state.tab} preview-season-${season}${state.device === 'mobile' ? ' mobile' : ''}`;
   elements.journeyPreview.innerHTML = `<div class="preview-browser"><i></i><i></i><i></i></div>${previewRenderers[state.tab](state.content)}`;
 }
 
@@ -947,6 +1253,22 @@ async function loadHistory() {
   }
 }
 
+async function loadJourneys(options = {}) {
+  if (state.journeysLoaded && !options.force) return;
+  if (DEMO_MODE) {
+    state.journeysLoaded = true;
+    return;
+  }
+  const result = await callCms('listJourneys');
+  const items = Array.isArray(result.items) ? result.items : [];
+  state.journeys = items;
+  items.forEach((item) => registerJourneyResource(
+    item,
+    item.id === initialJourney.id ? initialJourney : null,
+  ));
+  state.journeysLoaded = true;
+}
+
 async function loadResource(resourceId, options = {}) {
   const resource = state.resources[resourceId];
   const meta = RESOURCE_META[resourceId];
@@ -959,16 +1281,23 @@ async function loadResource(resourceId, options = {}) {
   }
   const result = await callCms('getContent', { resourceId });
   if (result.content?.id && result.content.id !== resourceId) {
-    throw new Error(`云函数尚未支持${meta.label}。请部署 V32 asuka-cms 云函数包后重新进入后台。`);
+    throw new Error(`云函数尚未支持${meta.label}。请部署 V33 asuka-cms 云函数包后重新进入后台。`);
   }
-  resource.content = clone(result.content || meta.initial);
-  resource.published = clone(result.published || result.content || meta.initial);
+  const nextContent = clone(result.content || meta.initial);
+  const nextPublished = clone(result.published || result.content || meta.initial);
+  resource.content = isJourneyResource(resourceId) ? normalizeJourney(nextContent) : nextContent;
+  resource.published = isJourneyResource(resourceId) && nextPublished ? normalizeJourney(nextPublished) : nextPublished;
   resource.draftInfo = result.draftInfo || null;
   resource.revision = Number(result.draftInfo?.revision) || 0;
   resource.publishRequestId = null;
   resource.dirty = false;
   resource.loaded = true;
   if (options.restoreLocal !== false) restoreLocalDraft(resourceId, result.draftInfo?.updatedAt);
+  if (isJourneyResource(resourceId)) {
+    resource.content = normalizeJourney(resource.content);
+    registerJourneyResource({ id: resourceId, title: resource.content.card?.title }, resource.content);
+    upsertJourneyListFromContent(resource.content, { hasDraft: Boolean(result.draftInfo) });
+  }
 }
 
 async function loadStaff() {
@@ -985,21 +1314,28 @@ async function loadStaff() {
 
 async function selectTab(tab) {
   if (tab === 'staff' && state.actor?.role !== 'admin') return;
-  const resourceByTab = {
-    home: 'homepage',
-    overview: 'kanto-6d',
-    days: 'kanto-6d',
-    highlights: 'kanto-6d',
-    stays: 'kanto-6d',
-  };
-  const nextResourceId = resourceByTab[tab] || state.resourceId;
+  if (tab === 'journeys') {
+    try {
+      await loadJourneys();
+    } catch (error) {
+      showToast(`行程目录读取失败：${error.message}`, 'error');
+    }
+  }
+  const journeyTabs = ['overview', 'days', 'highlights', 'stays'];
+  let nextResourceId = state.resourceId;
+  if (tab === 'home') nextResourceId = 'homepage';
+  else if (journeyTabs.includes(tab) && !isJourneyResource(nextResourceId)) {
+    nextResourceId = state.journeys[0]?.id || 'kanto-6d';
+  }
   state.tab = tab;
   state.resourceId = nextResourceId;
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
-  [elements.sectionEyebrow.textContent, elements.sectionTitle.textContent] = TAB_COPY[tab];
+  const [eyebrow, baseTitle] = TAB_COPY[tab];
+  elements.sectionEyebrow.textContent = eyebrow;
+  elements.sectionTitle.textContent = journeyTabs.includes(tab) ? `${baseTitle} · ${currentResourceMeta().shortLabel}` : baseTitle;
   elements.cmsApp.classList.remove('sidebar-open');
   elements.mobileMenu.setAttribute('aria-expanded', 'false');
-  if (!state.resources[nextResourceId].loaded) {
+  if (!state.resources[nextResourceId]?.loaded) {
     elements.editorCanvas.innerHTML = `<div class="editor-loading"><span></span><p>正在读取${escapeHtml(RESOURCE_META[nextResourceId].label)}最新内容…</p></div>`;
     elements.journeyPreview.innerHTML = '';
     try {
@@ -1020,6 +1356,109 @@ async function selectTab(tab) {
   if (state.tab !== tab || !['publish', 'staff'].includes(tab)) return;
   renderEditor();
   renderPreview();
+}
+
+async function selectJourney(resourceId) {
+  const item = state.journeys.find((journey) => journey.id === resourceId);
+  if (!item && !state.resources[resourceId]) return showToast('没有找到这个行程', 'error');
+  if (!state.resources[resourceId]) registerJourneyResource(item);
+  state.resourceId = resourceId;
+  state.selectedDay = 0;
+  await selectTab('overview');
+}
+
+async function openJourneyModal(sourceResourceId = '') {
+  try {
+    await loadJourneys();
+    const preferredSource = sourceResourceId
+      || (isJourneyResource() ? state.resourceId : '')
+      || state.journeys[0]?.id
+      || 'kanto-6d';
+    if (!state.resources[preferredSource]) {
+      const item = state.journeys.find((journey) => journey.id === preferredSource);
+      if (item) registerJourneyResource(item);
+    }
+    if (!state.resources[preferredSource]?.loaded) await loadResource(preferredSource);
+    const source = state.resources[preferredSource].content;
+    const sourceOptions = state.journeys.map((journey) => `<option value="${escapeHtml(journey.id)}"${journey.id === preferredSource ? ' selected' : ''}>${escapeHtml(String(journey.title || journey.id).replaceAll('\n', ' '))}</option>`).join('');
+    openModal(`<p class="editor-kicker">NEW JOURNEY</p>
+      <h2>${sourceResourceId ? '复制行程' : '新增行程'}</h2>
+      <p>选择现有行程作为版式框架，再决定保留正文参考或从空白字段开始。新行程默认官网隐藏，可放心分阶段保存草稿。</p>
+      <form class="journey-create-form" id="journeyCreateForm">
+        <div class="field full"><label for="journeySource">框架来源</label><select id="journeySource">${sourceOptions}</select></div>
+        <div class="journey-template-mode full">
+          <label><input type="radio" name="templateMode" value="structure"${sourceResourceId ? '' : ' checked'}><span><strong>仅保留结构</strong><small>清空路线文字并标记占位图片，适合全新目的地</small></span></label>
+          <label><input type="radio" name="templateMode" value="copy"${sourceResourceId ? ' checked' : ''}><span><strong>复制全部内容</strong><small>保留正文与图片，适合同路线季节版或相近产品</small></span></label>
+        </div>
+        <div class="journey-create-grid full">
+          <div class="field"><label for="newJourneyTitle">行程标题</label><input id="newJourneyTitle" maxlength="80" required placeholder="例如：京都奈良·关西雅行5日"></div>
+          <div class="field"><label for="newJourneyId">网址编号</label><input id="newJourneyId" maxlength="64" required pattern="[a-z][a-z0-9-]{2,63}" placeholder="例如：kansai-5d"><div class="field-help"><span>仅小写字母、数字和连字符，创建后不可改。</span><span></span></div></div>
+          <div class="field"><label for="newProductCode">产品编号</label><input id="newProductCode" maxlength="32" required placeholder="例如：AS-KANSAI-05"></div>
+          <div class="field"><label for="newJourneyDays">行程天数</label><input id="newJourneyDays" type="number" min="1" max="30" value="${source.days.length}" required></div>
+          <div class="field"><label for="newJourneyRegion">所属地区</label><select id="newJourneyRegion">${REGIONS.map((region) => `<option value="${region.id}"${region.id === source.regionId ? ' selected' : ''}>${region.code} · ${region.name}</option>`).join('')}</select></div>
+          <div class="field"><label for="newJourneySeason">季节模板</label><select id="newJourneySeason">${SEASONS.map((season) => `<option value="${season.id}"${season.id === source.management.season ? ' selected' : ''}>${season.label}｜${season.motif}</option>`).join('')}</select></div>
+          <div class="field full"><label for="newTravelMonths">适合月份</label><input id="newTravelMonths" maxlength="40" value="${escapeHtml(source.management.travelMonths || '全年适用')}" placeholder="例如：3月下旬—4月中旬"></div>
+        </div>
+        <div class="template-safety-note full"><strong>发布保护已开启</strong><span>“仅保留结构”会阻止模板占位图直接发布；请替换图片并补全必填内容。</span></div>
+        <div class="modal-actions full"><button class="secondary" data-close-modal type="button">取消</button><button class="primary" type="submit">创建并开始编辑</button></div>
+      </form>`);
+    elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
+    elements.modalContent.querySelector('#journeyCreateForm').addEventListener('submit', createJourney);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function createJourney(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const resourceId = form.querySelector('#newJourneyId').value.trim().toLowerCase();
+  const title = form.querySelector('#newJourneyTitle').value.trim();
+  const productCode = form.querySelector('#newProductCode').value.trim().toUpperCase();
+  const sourceResourceId = form.querySelector('#journeySource').value;
+  if (!JOURNEY_ID_PATTERN.test(resourceId)) return showToast('网址编号格式不正确', 'error');
+  if (state.journeys.some((item) => item.id === resourceId)) return showToast('这个网址编号已被使用', 'error');
+  if (state.journeys.some((item) => String(item.productCode).toUpperCase() === productCode)) return showToast('这个产品编号已被使用', 'error');
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = '正在创建…';
+  try {
+    if (!state.resources[sourceResourceId]?.loaded) await loadResource(sourceResourceId);
+    const content = createJourneyFromTemplate(state.resources[sourceResourceId].content, {
+      id: resourceId,
+      title,
+      productCode,
+      daysCount: Number(form.querySelector('#newJourneyDays').value),
+      regionId: form.querySelector('#newJourneyRegion').value,
+      season: form.querySelector('#newJourneySeason').value,
+      travelMonths: form.querySelector('#newTravelMonths').value.trim(),
+      mode: form.querySelector('[name="templateMode"]:checked').value,
+    });
+    let result = { revision: 1, savedAt: new Date().toISOString() };
+    if (!DEMO_MODE) {
+      result = await callCms('createJourney', {
+        resourceId,
+        sourceResourceId,
+        content,
+      });
+    }
+    const resource = registerJourneyResource({ id: resourceId, title }, content);
+    resource.content = content;
+    resource.published = null;
+    resource.revision = Number(result.revision) || 1;
+    resource.draftInfo = { revision: resource.revision, updatedAt: result.savedAt };
+    resource.dirty = false;
+    resource.loaded = true;
+    upsertJourneyListFromContent(content, { hasDraft: true });
+    saveLocalDraft(resourceId);
+    closeModal();
+    showToast('新行程已建立并保存为隐藏草稿');
+    await selectJourney(resourceId);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = '重试创建';
+    showToast(error.message, 'error');
+  }
 }
 
 function openModal(html) {
@@ -1079,7 +1518,7 @@ function openPublishModal() {
   state.publishRequestId ||= window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const checks = isHomepage
     ? '<div>✓ 首页封面、品牌介绍、飞鸟之选与出发方式完整</div><div>✓ 桌面与手机共用同一份响应式图片</div><div>✓ 版式、动画与功能链接保持锁定</div>'
-    : '<div>✓ 六天行程字段完整</div><div>✓ 手机与桌面图片路径有效</div><div>✓ 行车里程与预计驾驶时间完整</div>';
+    : `<div>✓ ${state.content.days.length}天行程字段完整</div><div>✓ ${escapeHtml(seasonById(state.content.management?.season).label)}视觉与手机排版已应用</div><div>✓ 响应式图片和逐日路线完整</div>`;
   openModal(`<p class="editor-kicker">READY TO PUBLISH</p><h2>确认发布${escapeHtml(meta.label)}？</h2><p>本次只更新“${escapeHtml(meta.label)}”的文字、响应式图片与对应静态页面；不会覆盖另一个内容资源。GitHub Pages 通常在1—3分钟内显示最新版。</p>
     <div class="publish-checks">${checks}<div>✓ 发布密钥只在云函数中使用</div></div>
     <div class="field full"><label for="publishMessage">本次提交说明</label><input id="publishMessage" maxlength="100" value="${escapeHtml(meta.defaultMessage)}" /></div>
@@ -1115,6 +1554,7 @@ async function publishSite() {
       state.published = stripClientInternal(clone(state.content));
       state.publishRequestId = null;
       state.dirty = true;
+      if (isJourneyResource()) upsertJourneyListFromContent(state.content, { hasDraft: true });
       saveLocalDraft();
       updateSaveState('同事另有新草稿');
       schedulePreview();
@@ -1128,6 +1568,7 @@ async function publishSite() {
     state.dirty = false;
     state.content = stripClientInternal(state.content);
     state.published = clone(state.content);
+    if (isJourneyResource()) upsertJourneyListFromContent(state.content, { hasDraft: false });
     state.publishRequestId = null;
     saveLocalDraft();
     updateSaveState(`已发布 ${formatTime(result.publishedAt)}`);
@@ -1255,8 +1696,10 @@ function formatTime(value) {
 
 function applyRoleVisibility() {
   document.querySelectorAll('.admin-only').forEach((element) => {
-    element.hidden = state.actor?.role !== 'admin';
+    element.hidden = state.actor?.role !== 'admin'
+      || (element === elements.quickPublishButton && ['journeys', 'staff'].includes(state.tab));
   });
+  elements.saveButton.hidden = ['journeys', 'staff'].includes(state.tab);
 }
 
 async function initializeApp(actor) {
@@ -1271,6 +1714,7 @@ async function initializeApp(actor) {
     state.resourceId = 'homepage';
     state.tab = 'home';
     await loadResource('homepage');
+    await loadJourneys().catch((error) => showToast(`行程目录读取失败：${error.message}`, 'error'));
     synchronizeContent();
     renderEditor();
     renderPreview();
@@ -1352,7 +1796,8 @@ async function login(event) {
   }
 }
 
-document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
+document.querySelectorAll('.nav-item[data-tab]').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
+document.querySelector('[data-action="new-journey"]')?.addEventListener('click', () => openJourneyModal());
 document.querySelectorAll('[data-device]').forEach((button) => button.addEventListener('click', () => {
   state.device = button.dataset.device;
   document.querySelectorAll('[data-device]').forEach((item) => item.classList.toggle('active', item === button));

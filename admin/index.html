@@ -1,14 +1,14 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="robots" content="noindex,nofollow,noarchive" />
-    <meta name="theme-color" content="#f6f3ee" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#f6f3ee">
     <title>飞鸟旅行后台</title>
-    <script type="module" crossorigin src="./assets/index-DiZDQS4n.js"></script>
+    <script type="module" crossorigin src="./assets/index-DMEqPNLq.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/cloudbase-C183mGQ9.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-CAggRvUg.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-i3uVkc9w.css">
   </head>
   <body>
     <div class="login-shell" id="loginScreen">
@@ -17,53 +17,56 @@
         <div class="visual-orbit orbit-two"></div>
         <div class="visual-wordmark">
           <span>ASUKA</span>
-          <strong>让每一段旅程，<br />都被认真讲述。</strong>
+          <strong>让每一段旅程，<br>都被认真讲述。</strong>
         </div>
       </div>
-      <main class="login-card">
+      <section class="login-card" aria-labelledby="loginTitle">
         <div class="brand-lockup">
           <span class="brand-mark">飛</span>
           <span><strong>飞鸟旅行</strong><small>ASUKA TRAVEL · CONTENT STUDIO</small></span>
         </div>
         <div class="login-copy">
           <p class="eyebrow">STAFF SIGN IN</p>
-          <h1>欢迎回来</h1>
+          <h1 id="loginTitle">欢迎回来</h1>
           <p>使用已获授权的工作邮箱登录。验证码只用于确认身份，无需另外记密码。</p>
         </div>
         <form id="loginForm" class="login-form">
           <label for="loginEmail">工作邮箱</label>
           <div class="email-row">
-            <input id="loginEmail" type="email" autocomplete="email" placeholder="name@example.com" required />
+            <input id="loginEmail" type="email" autocomplete="email" placeholder="name@example.com" required>
             <button id="sendCodeButton" type="button">发送验证码</button>
           </div>
           <div class="code-field" id="codeField" hidden>
             <label for="loginCode">6位验证码</label>
-            <input id="loginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" />
+            <input id="loginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000">
           </div>
           <button class="primary login-submit" id="loginButton" type="submit" disabled>进入后台</button>
           <p class="form-message" id="loginMessage" role="status"></p>
         </form>
         <p class="login-security"><span aria-hidden="true">●</span> 工作人员身份由腾讯云 CloudBase 验证</p>
-      </main>
+      </section>
     </div>
 
     <div class="cms-shell" id="cmsApp" hidden>
-      <aside class="cms-sidebar" id="cmsSidebar">
+      <aside class="cms-sidebar" id="cmsSidebar" aria-label="后台侧栏">
         <div class="brand-lockup brand-lockup--sidebar">
           <span class="brand-mark">飛</span>
           <span><strong>飞鸟旅行</strong><small>CONTENT STUDIO</small></span>
         </div>
         <nav class="cms-nav" aria-label="后台功能">
-          <button class="nav-item active" data-tab="home"><span>01</span>首页内容</button>
-          <button class="nav-item" data-tab="overview"><span>02</span>产品概览</button>
-          <button class="nav-item" data-tab="days"><span>03</span>每日行程</button>
-          <button class="nav-item" data-tab="highlights"><span>04</span>亮点与图片</button>
-          <button class="nav-item" data-tab="stays"><span>05</span>酒店与说明</button>
-          <button class="nav-item" data-tab="publish"><span>06</span>发布管理</button>
-          <button class="nav-item admin-only" data-tab="staff"><span>07</span>工作人员</button>
+          <button class="nav-item active" data-tab="home" type="button"><span>01</span>首页内容</button>
+          <button class="nav-item" data-tab="journeys" type="button"><span>02</span>全部行程</button>
+          <button class="nav-item nav-item--accent" data-action="new-journey" type="button"><span>＋</span>新增行程</button>
+          <small class="nav-section-label">当前行程编辑</small>
+          <button class="nav-item" data-tab="overview" type="button"><span>03</span>产品概览</button>
+          <button class="nav-item" data-tab="days" type="button"><span>04</span>每日行程</button>
+          <button class="nav-item" data-tab="highlights" type="button"><span>05</span>亮点与图片</button>
+          <button class="nav-item" data-tab="stays" type="button"><span>06</span>酒店与说明</button>
+          <button class="nav-item" data-tab="publish" type="button"><span>07</span>发布管理</button>
+          <button class="nav-item admin-only" data-tab="staff" type="button"><span>08</span>工作人员</button>
         </nav>
         <div class="sidebar-foot">
-          <small class="admin-version">V32 · 首页统一管理</small>
+          <small class="admin-version">V33 · 通用行程工作台</small>
           <a href="https://z2816372267-dev.github.io/japan-signature-journeys/" target="_blank" rel="noopener">打开官网 ↗</a>
           <button id="signOutButton" type="button">退出登录</button>
         </div>
@@ -91,7 +94,7 @@
           <main class="editor-canvas" id="editorCanvas">
             <div class="editor-loading" id="editorLoading"><span></span><p>正在读取官网首页最新内容…</p></div>
           </main>
-          <aside class="preview-panel" id="previewPanel">
+          <aside class="preview-panel" id="previewPanel" aria-label="页面实时预览">
             <div class="preview-toolbar">
               <div><small id="previewEyebrow">LIVE HOMEPAGE</small><strong id="previewTitle">首页实时预览</strong></div>
               <div class="device-switch" role="group" aria-label="预览尺寸">

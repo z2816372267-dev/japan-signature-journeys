@@ -102,7 +102,7 @@ function renderSelectionItem(item, index, total) {
   const number = String(index + 1).padStart(2, '0');
   const count = String(total).padStart(2, '0');
   const action = index === 0
-    ? 'href="#kantoJourney" onclick="openKantoJourney();return false"'
+    ? 'href="journeys/kanto-6d/"'
     : 'href="#heart" onclick="openPanel(\'heart\');return false"';
   return `<article class="asuka-selection-slide${index === 0 ? ' is-active' : ''}" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第${index + 1}项，共${total}项：${escapeHtml(item.title)}"${index === 0 ? ' aria-current="true"' : ''}>
               <div class="asuka-selection-visual">

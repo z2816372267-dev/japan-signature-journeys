@@ -1,5 +1,12 @@
 'use strict';
 
+const {
+  JOURNEY_ID_PATTERN,
+  REGION_DEFINITIONS,
+  SEASON_DEFINITIONS,
+  normalizeJourney,
+} = require('./journey-model');
+
 const AIRPORT_METRIC_MIGRATIONS = Object.freeze([
   {
     dayIndex: 0,
@@ -59,10 +66,13 @@ function validateAssetPath(path, label) {
   }
 }
 
-function validateImage(image, label, optional = false) {
+function validateImage(image, label, optional = false, allowTemplatePlaceholder = false) {
   if (!image && optional) return;
   if (!image || typeof image !== 'object') {
     throw cmsError('INVALID_CONTENT', `${label} 缺少图片信息`);
+  }
+  if (image._templatePlaceholder && !allowTemplatePlaceholder) {
+    throw cmsError('INVALID_CONTENT', `${label} 仍是模板占位图，请上传与新行程对应的图片`);
   }
   for (const key of ['webp480', 'webp960', 'webp1600', 'fallback']) {
     validateAssetPath(image[key], `${label}.${key}`);
@@ -74,7 +84,7 @@ function validateImage(image, label, optional = false) {
 }
 
 function migrateAirportMetrics(data) {
-  if (!Array.isArray(data?.days)) return data;
+  if (data?.id !== 'kanto-6d' || !Array.isArray(data?.days)) return data;
   for (const migration of AIRPORT_METRIC_MIGRATIONS) {
     const day = data.days[migration.dayIndex];
     if (!day) continue;
@@ -87,6 +97,7 @@ function migrateAirportMetrics(data) {
 
 function synchronizeJourney(data) {
   if (!data || typeof data !== 'object') return data;
+  normalizeJourney(data);
   migrateAirportMetrics(data);
   if (data.card && data.hero) {
     data.hero.kicker = data.card.kicker;
@@ -103,14 +114,58 @@ function synchronizeJourney(data) {
   return data;
 }
 
-function validateJourney(data) {
+function validateJourneyDraft(data) {
   if (!data || typeof data !== 'object') throw cmsError('INVALID_CONTENT', '行程内容为空');
-  if (data.schemaVersion !== 1) throw cmsError('INVALID_CONTENT', '内容版本不受支持');
-  if (data.id !== 'kanto-6d') throw cmsError('INVALID_CONTENT', '当前后台只允许编辑关东6日行程');
+  if (![1, 2].includes(Number(data.schemaVersion || 1))) {
+    throw cmsError('INVALID_CONTENT', '内容版本不受支持');
+  }
   synchronizeJourney(data);
+  if (!JOURNEY_ID_PATTERN.test(String(data.id || ''))) {
+    throw cmsError('INVALID_CONTENT', '行程网址编号须为3—64位小写英文字母、数字或连字符，并以字母开头');
+  }
   requireText(data.productCode, '产品编号', 32);
-  requireText(data.card?.kicker, '产品英文眉题', 80);
   requireText(data.card?.title, '产品标题', 80);
+  if (!Array.isArray(data.days) || data.days.length < 1 || data.days.length > 30) {
+    throw cmsError('INVALID_CONTENT', '行程必须包含1—30天');
+  }
+  data.days.forEach((day, index) => {
+    if (!day || typeof day !== 'object') {
+      throw cmsError('INVALID_CONTENT', `第${index + 1}天内容格式不正确`);
+    }
+    if (day.image) validateImage(day.image, `第${index + 1}天图片`, false, true);
+  });
+  if (data.hero?.image) validateImage(data.hero.image, '首屏图片', false, true);
+  if (data.map?.image) validateImage(data.map.image, '行程地图图片', false, true);
+  if (Array.isArray(data.highlights?.items)) {
+    data.highlights.items.forEach((item, index) => {
+      if (item?.image) validateImage(item.image, `亮点${index + 1}图片`, false, true);
+    });
+  }
+
+  const serialized = JSON.stringify(data);
+  if (Buffer.byteLength(serialized, 'utf8') > 200 * 1024) {
+    throw cmsError('CONTENT_TOO_LARGE', '行程文字数据超过200KB限制');
+  }
+  return data;
+}
+
+function validateJourney(data) {
+  validateJourneyDraft(data);
+  if (data.schemaVersion !== 2) throw cmsError('INVALID_CONTENT', '行程内容升级失败');
+  if (!REGION_DEFINITIONS.some((item) => item.id === data.regionId)) {
+    throw cmsError('INVALID_CONTENT', '请选择有效的行程地区');
+  }
+  if (!Object.prototype.hasOwnProperty.call(SEASON_DEFINITIONS, data.management?.season)) {
+    throw cmsError('INVALID_CONTENT', '请选择有效的季节模板');
+  }
+  requireText(data.management?.regionName, '地区名称', 30);
+  requireText(data.management?.regionLatin, '地区英文', 30);
+  requireText(data.management?.seasonVariant, '季节主题说明', 40);
+  requireText(data.management?.travelMonths, '适合月份', 40);
+  if (!['published', 'hidden'].includes(data.management?.visibility)) {
+    throw cmsError('INVALID_CONTENT', '官网展示状态不正确');
+  }
+  requireText(data.card?.kicker, '产品英文眉题', 80);
   requireText(data.card?.summary, '产品摘要', 500);
   requireTextArray(data.card?.meta, '产品标签', { min: 1, max: 6, itemMax: 30 });
   requireText(data.hero?.kicker, '首屏英文眉题', 80);
@@ -124,20 +179,17 @@ function validateJourney(data) {
   requireText(data.overview?.title, '行程概览标题', 100);
   requireText(data.overview?.copy, '行程概览说明', 700);
   requireText(data.overview?.route, '完整动线', 240);
-  if (!Array.isArray(data.overview?.facts) || data.overview.facts.length !== 4) {
-    throw cmsError('INVALID_CONTENT', '行程概览必须保留4项信息');
+  if (!Array.isArray(data.overview?.facts) || !data.overview.facts.length || data.overview.facts.length > 8) {
+    throw cmsError('INVALID_CONTENT', '行程概览必须包含1—8项信息');
   }
   data.overview.facts.forEach((fact, index) => {
     requireText(fact?.label, `概览信息${index + 1}标签`, 30);
     requireText(fact?.value, `概览信息${index + 1}内容`, 120);
   });
 
-  if (!Array.isArray(data.days) || data.days.length !== 6) {
-    throw cmsError('INVALID_CONTENT', '关东6日行程必须包含6天');
-  }
   data.days.forEach((day, index) => {
     const prefix = `第${index + 1}天`;
-    requireText(day.number, `${prefix}编号`, 2);
+    requireText(day.number, `${prefix}编号`, 3);
     requireText(day.title, `${prefix}标题`, 80);
     requireText(day.route, `${prefix}路线`, 120);
     requireTextArray(day.stops, `${prefix}停靠点`, { min: 1, max: 10, itemMax: 50 });
@@ -157,16 +209,22 @@ function validateJourney(data) {
   requireText(data.map?.copy, '行程地图说明', 700);
   requireText(data.map?.caption, '行程地图注释', 400);
   requireText(data.map?.alt, '行程地图替代文字', 220);
-  validateAssetPath(data.map?.desktop, '桌面行程地图');
-  validateAssetPath(data.map?.mobile, '手机行程地图');
+  if (data.map.mode === 'image') validateImage(data.map.image, '行程地图图片');
+  if (data.map.mode === 'legacy') {
+    validateAssetPath(data.map?.desktop, '桌面行程地图');
+    validateAssetPath(data.map?.mobile, '手机行程地图');
+  }
+  if (!['summary', 'image', 'legacy'].includes(data.map.mode)) {
+    throw cmsError('INVALID_CONTENT', '行程地图展示方式不正确');
+  }
   if (!Array.isArray(data.map?.days) || data.map.days.length !== data.days.length) {
     throw cmsError('INVALID_CONTENT', '地图逐日路线与每日行程不同步');
   }
 
   requireText(data.highlights?.title, '亮点区标题', 100);
   requireText(data.highlights?.copy, '亮点区说明', 500);
-  if (!Array.isArray(data.highlights?.items) || data.highlights.items.length !== 4) {
-    throw cmsError('INVALID_CONTENT', '亮点区必须保留4项内容');
+  if (!Array.isArray(data.highlights?.items) || !data.highlights.items.length || data.highlights.items.length > 8) {
+    throw cmsError('INVALID_CONTENT', '亮点区必须包含1—8项内容');
   }
   data.highlights.items.forEach((item, index) => {
     requireText(item?.eyebrow, `亮点${index + 1}英文眉题`, 80);
@@ -203,11 +261,11 @@ function validateJourney(data) {
   requireText(data.booking?.departure, '出发日期', 100);
   requireText(data.booking?.price, '参考价格', 100);
   requireText(data.booking?.travelStyle, '旅行方式', 80);
-
-  const serialized = JSON.stringify(data);
-  if (Buffer.byteLength(serialized, 'utf8') > 200 * 1024) {
-    throw cmsError('CONTENT_TOO_LARGE', '行程文字数据超过200KB限制');
+  if (!Number.isInteger(data.booking?.maxGuests) || data.booking.maxGuests < 1 || data.booking.maxGuests > 50) {
+    throw cmsError('INVALID_CONTENT', '咨询人数上限须为1—50人');
   }
+  requireText(data.seo?.title, '网页标题', 100);
+  requireText(data.seo?.description, '网页说明', 220);
   return data;
 }
 
@@ -303,4 +361,5 @@ module.exports = {
   validateContent,
   validateHomepage,
   validateJourney,
+  validateJourneyDraft,
 };

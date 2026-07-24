@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "journeys": [
+    {
+      "id": "kanto-6d",
+      "productCode": "AS-KANTO-06",
+      "regionId": "kanto",
+      "regionCode": "02",
+      "regionName": "关东地区",
+      "regionLatin": "KANTO",
+      "season": "all",
+      "seasonVariant": "四季通用",
+      "travelMonths": "全年适用",
+      "visibility": "published",
+      "order": 10,
+      "daysCount": 6,
+      "nightsCount": 5,
+      "maxGuests": 8,
+      "title": "富士箱根·伊豆镰仓\n关东山海6日",
+      "summary": "高尾山、富士河口湖、箱根、伊豆与镰仓一线串联，在城市停留、山湖温泉与海岸散策之间保持舒展节奏。",
+      "meta": [
+        "6日5晚",
+        "自然·艺术·温泉",
+        "8人小团"
+      ],
+      "image": {
+        "alt": "河口湖大石公园与富士山实景",
+        "fallback": "images/responsive/oishi-park-fuji-v22-960.jpg",
+        "height": 1467,
+        "webp1600": "images/responsive/oishi-park-fuji-v22-1600.webp",
+        "webp480": "images/responsive/oishi-park-fuji-v22-480.webp",
+        "webp960": "images/responsive/oishi-park-fuji-v22-960.webp",
+        "width": 2200
+      },
+      "href": "journeys/kanto-6d/",
+      "updatedAt": "2026-07-24T00:00:00.000Z"
+    }
+  ]
+}

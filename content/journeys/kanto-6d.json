@@ -5,7 +5,8 @@
     "price": "待公布",
     "productGroup": "日本心旅行·关东地区",
     "title": "富士箱根·伊豆镰仓\n关东山海6日",
-    "travelStyle": "8人小团"
+    "travelStyle": "8人小团",
+    "maxGuests": 8
   },
   "card": {
     "kicker": "ASUKA SIGNATURE JOURNEY · KANTO 01",
@@ -360,6 +361,17 @@
     "title": "四种关东，编进同一段旅程"
   },
   "id": "kanto-6d",
+  "management": {
+    "regionCode": "02",
+    "regionName": "关东地区",
+    "regionLatin": "KANTO",
+    "season": "all",
+    "seasonVariant": "四季通用",
+    "travelMonths": "全年适用",
+    "visibility": "published",
+    "order": 10,
+    "nights": 5
+  },
   "map": {
     "alt": "关东山海6日行程地图：东京、高尾山、河口湖、箱根、伊豆城崎海岸、镰仓并返回东京",
     "caption": "地图按实际经纬度与公路走向绘制；最终用车路线可能因酒店位置、实时交通及车辆通行条件调整。",
@@ -398,6 +410,7 @@
     ],
     "desktop": "images/maps/kanto-route-map-v24.svg",
     "mobile": "images/maps/kanto-route-map-mobile-v24.svg",
+    "mode": "legacy",
     "title": "六日动线，一目了然"
   },
   "notes": {
@@ -448,7 +461,11 @@
   },
   "productCode": "AS-KANTO-06",
   "regionId": "kanto",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "seo": {
+    "title": "富士箱根·伊豆镰仓｜关东山海6日",
+    "description": "飞鸟旅行关东山海6日小团行程，连接东京、高尾山、富士河口湖、箱根、伊豆与镰仓，在自然、艺术、温泉与海岸之间从容旅行。"
+  },
   "stays": {
     "copy": "每一晚均按对应区域清晰标注，并区分城市酒店、河口湖温泉旅宿与御殿场设计酒店。最终入住以团期确认书为准，让住宿选择与次日动线相互匹配。",
     "groups": [

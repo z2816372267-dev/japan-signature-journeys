@@ -3,13 +3,21 @@
 const crypto = require('node:crypto');
 const tcb = require('@cloudbase/node-sdk');
 const { GitHubPublisher } = require('./lib/github');
-const { renderSite } = require('./lib/render-journey.cjs');
+const { renderJourneyPage, renderSite } = require('./lib/render-journey.cjs');
+const {
+  JOURNEY_ID_PATTERN,
+  catalogItemFromJourney,
+  emptyCatalog,
+  normalizeCatalog,
+  upsertCatalogJourney,
+} = require('./lib/journey-model');
 const {
   cmsError,
   normalizeEmail,
   stripInternal,
   validateHomepage,
   validateJourney,
+  validateJourneyDraft,
 } = require('./lib/validation');
 
 const app = tcb.init({ env: tcb.SYMBOL_CURRENT_ENV });
@@ -39,25 +47,26 @@ const CONTENT_RESOURCES = Object.freeze({
     path: 'content/homepage.json',
     defaultMessage: 'Update Asuka homepage via CMS',
     validate: validateHomepage,
-  },
-  'kanto-6d': {
-    id: 'kanto-6d',
-    label: '关东山海6日',
-    path: 'content/journeys/kanto-6d.json',
-    defaultMessage: 'Update Kanto journey via Asuka CMS',
-    validate: validateJourney,
+    validateDraft: validateHomepage,
   },
 });
 
 function contentResource(value) {
-  const id = String(value || 'kanto-6d').trim();
-  const resource = CONTENT_RESOURCES[id];
-  if (!resource) throw cmsError('INVALID_RESOURCE', '后台内容类型不受支持');
-  return resource;
+  const id = String(value || 'homepage').trim();
+  if (CONTENT_RESOURCES[id]) return CONTENT_RESOURCES[id];
+  if (!JOURNEY_ID_PATTERN.test(id)) throw cmsError('INVALID_RESOURCE', '后台内容类型不受支持');
+  return {
+    id,
+    label: id,
+    path: `content/journeys/${id}.json`,
+    defaultMessage: `Update ${id} journey via Asuka CMS`,
+    validate: validateJourney,
+    validateDraft: validateJourneyDraft,
+  };
 }
 
 function resourceFromEvent(event = {}) {
-  return contentResource(event.resourceId || event.content?.id || event.journeyId || 'kanto-6d');
+  return contentResource(event.resourceId || event.content?.id || event.journeyId || 'homepage');
 }
 
 function github() {
@@ -192,7 +201,7 @@ async function readPublishedContent(resource) {
 async function getContent(actor, event) {
   const resource = resourceFromEvent(event);
   const draft = await readDoc(COLLECTIONS.drafts, resource.id);
-  const draftContent = draft?.content ? resource.validate(structuredClone(draft.content)) : null;
+  const draftContent = draft?.content ? resource.validateDraft(structuredClone(draft.content)) : null;
   let published = null;
   try {
     published = await readPublishedContent(resource);
@@ -217,7 +226,7 @@ async function getContent(actor, event) {
 
 async function saveDraft(actor, event) {
   const resource = resourceFromEvent(event);
-  const content = resource.validate(event.content);
+  const content = resource.validateDraft(event.content);
   if (content.id !== resource.id) throw cmsError('INVALID_RESOURCE', '内容编号与当前编辑栏目不一致');
   const current = await readDoc(COLLECTIONS.drafts, resource.id);
   const currentRevision = Number(current?.revision) || 0;
@@ -234,16 +243,116 @@ async function saveDraft(actor, event) {
   const revision = currentRevision + 1;
   await writeDoc(COLLECTIONS.drafts, resource.id, {
     resourceId: resource.id,
-    ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
     content,
     revision,
     updatedAt: savedAt,
     updatedBy: actor.email,
     updatedByUid: actor.uid,
     updatedByName: actor.name,
+    publishedRevision: Number(current?.publishedRevision) || 0,
   });
   await audit(actor, 'save-draft', { resourceId: resource.id, revision });
   return { savedAt, revision, resourceId: resource.id };
+}
+
+async function readJourneyCatalog() {
+  try {
+    const text = await github().getTextFile('content/journeys/index.json');
+    return normalizeCatalog(JSON.parse(text));
+  } catch (error) {
+    if (error.status === 404) return emptyCatalog();
+    throw error;
+  }
+}
+
+async function readJourneyDrafts() {
+  try {
+    return documentList(await db.collection(COLLECTIONS.drafts).limit(100).get())
+      .filter((draft) => JOURNEY_ID_PATTERN.test(String(draft.resourceId || draft.journeyId || '')));
+  } catch (error) {
+    if (/not exist|不存在|DATABASE_COLLECTION_NOT_EXIST/i.test(error.message || '')) return [];
+    throw error;
+  }
+}
+
+async function listJourneys() {
+  const [catalog, drafts] = await Promise.all([readJourneyCatalog(), readJourneyDrafts()]);
+  const items = new Map(catalog.journeys.map((item) => [item.id, { ...item, hasDraft: false }]));
+  for (const draft of drafts) {
+    try {
+      const content = validateJourneyDraft(structuredClone(draft.content));
+      const fallback = {
+        id: content.id,
+        productCode: content.productCode,
+        title: content.card?.title || content.id,
+        regionId: content.regionId,
+        regionCode: content.management?.regionCode,
+        regionName: content.management?.regionName,
+        season: content.management?.season || 'all',
+        seasonVariant: content.management?.seasonVariant || '',
+        visibility: content.management?.visibility || 'hidden',
+        order: Number(content.management?.order || 0),
+        daysCount: content.days?.length || 0,
+        href: `journeys/${content.id}/`,
+      };
+      let item = fallback;
+      try {
+        item = catalogItemFromJourney(content);
+      } catch {
+        // Incomplete drafts are intentionally allowed; the fallback keeps them manageable.
+      }
+      const previous = items.get(content.id) || {};
+      items.set(content.id, {
+        ...previous,
+        ...item,
+        hasDraft: Number(draft.revision || 0) > Number(draft.publishedRevision || 0),
+        draftUpdatedAt: draft.updatedAt || '',
+      });
+    } catch (error) {
+      console.warn('skip-invalid-journey-draft', draft.resourceId, error.message);
+    }
+  }
+  return normalizeCatalog({ schemaVersion: 1, journeys: [...items.values()] }).journeys;
+}
+
+async function createJourney(actor, event) {
+  const resource = resourceFromEvent(event);
+  if (resource.id === 'homepage') throw cmsError('INVALID_RESOURCE', '首页不能通过新增行程创建');
+  const content = resource.validateDraft(event.content);
+  if (content.id !== resource.id) throw cmsError('INVALID_RESOURCE', '内容编号与新行程网址编号不一致');
+  if (await readDoc(COLLECTIONS.drafts, resource.id)) {
+    throw cmsError('JOURNEY_EXISTS', '这个网址编号已经存在，请更换后重试', 409);
+  }
+  try {
+    await github().getTextFile(resource.path);
+    throw cmsError('JOURNEY_EXISTS', '这个网址编号已经存在，请更换后重试', 409);
+  } catch (error) {
+    if (error.code === 'JOURNEY_EXISTS') throw error;
+    if (error.status !== 404) throw error;
+  }
+  const existing = await listJourneys();
+  if (existing.some((item) => String(item.productCode || '').toUpperCase() === String(content.productCode).toUpperCase())) {
+    throw cmsError('PRODUCT_CODE_EXISTS', '这个产品编号已经存在，请更换后重试', 409);
+  }
+  const savedAt = now();
+  await writeDoc(COLLECTIONS.drafts, resource.id, {
+    resourceId: resource.id,
+    content,
+    revision: 1,
+    publishedRevision: 0,
+    updatedAt: savedAt,
+    updatedBy: actor.email,
+    updatedByUid: actor.uid,
+    updatedByName: actor.name,
+    createdAt: savedAt,
+    createdBy: actor.email,
+    sourceResourceId: String(event.sourceResourceId || ''),
+  });
+  await audit(actor, 'create-journey', {
+    resourceId: resource.id,
+    sourceResourceId: String(event.sourceResourceId || ''),
+  });
+  return { resourceId: resource.id, revision: 1, savedAt };
 }
 
 function decodeVariant(variant, expectedMime) {
@@ -313,7 +422,6 @@ async function stageAsset(actor, event) {
   const asset = {
     assetId,
     resourceId: resource.id,
-    ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
     ownerUid: actor.uid,
     ownerEmail: actor.email,
     alt,
@@ -403,7 +511,22 @@ async function markAssetsPublished(assets, actor, result, publishedAt) {
   })));
 }
 
-async function publish(actor, event) {
+function renderSitemap(catalogInput) {
+  const catalog = normalizeCatalog(catalogInput);
+  const entries = [
+    SITE.url,
+    ...catalog.journeys
+      .filter((item) => item.visibility !== 'hidden')
+      .map((item) => `${SITE.url}journeys/${item.id}/`),
+  ];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.map((url) => `  <url><loc>${url}</loc></url>`).join('\n')}
+</urlset>
+`;
+}
+
+async function publishV33(actor, event) {
   const resource = resourceFromEvent(event);
   const currentDraft = await readDoc(COLLECTIONS.drafts, resource.id);
   const currentRevision = Number(currentDraft?.revision) || 0;
@@ -412,6 +535,7 @@ async function publish(actor, event) {
     const editor = currentDraft?.updatedByName || currentDraft?.updatedBy || '另一位工作人员';
     throw cmsError('DRAFT_CONFLICT', `${editor} 已保存了较新的草稿，请重新读取后再发布。`, 409);
   }
+
   const draft = event.content || currentDraft?.content;
   const content = resource.validate(draft);
   if (content.id !== resource.id) throw cmsError('INVALID_RESOURCE', '内容编号与当前发布栏目不一致');
@@ -427,7 +551,6 @@ async function publish(actor, event) {
   await writeDoc(COLLECTIONS.publishes, jobId, {
     status: 'running',
     resourceId: resource.id,
-    ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
     message,
     startedAt: now(),
     startedBy: actor.email,
@@ -435,21 +558,65 @@ async function publish(actor, event) {
 
   try {
     const publisher = github();
-    const [currentIndex, journeyText, homepageText, staged] = await Promise.all([
+    const isHomepage = resource.id === 'homepage';
+    const pagePath = isHomepage ? '' : `journeys/${resource.id}/index.html`;
+    const [
+      currentIndex,
+      homepageText,
+      catalogText,
+      activeText,
+      currentPage,
+      currentSitemap,
+      staged,
+    ] = await Promise.all([
       publisher.getTextFile('index.html'),
-      publisher.getTextFile('content/journeys/kanto-6d.json').catch(() => ''),
       publisher.getTextFile('content/homepage.json').catch(() => ''),
+      publisher.getTextFile('content/journeys/index.json').catch(() => ''),
+      publisher.getTextFile(resource.path).catch(() => ''),
+      pagePath ? publisher.getTextFile(pagePath).catch(() => '') : Promise.resolve(''),
+      publisher.getTextFile('sitemap.xml').catch(() => ''),
       stagedAssetFiles(content),
     ]);
-    let result;
-    let alreadyCurrent = false;
-    const activeText = resource.id === 'homepage' ? homepageText : journeyText;
-    try {
-      const publishedContent = activeText ? stripInternal(resource.validate(JSON.parse(activeText))) : null;
-      alreadyCurrent = Boolean(publishedContent && canonicalJson(publishedContent) === canonicalJson(cleanContent));
-    } catch {
-      alreadyCurrent = false;
+
+    if (!catalogText) {
+      throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中缺少 V33 行程目录，请先上传 V33 官网上传包', 409);
     }
+    let catalog;
+    let homepageContent;
+    try {
+      catalog = normalizeCatalog(JSON.parse(catalogText));
+      homepageContent = isHomepage
+        ? cleanContent
+        : stripInternal(validateHomepage(JSON.parse(homepageText)));
+    } catch {
+      throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中的 V33 首页或行程目录无效，请先上传 V33 官网上传包', 409);
+    }
+
+    let nextCatalog = catalog;
+    let journeyPage = '';
+    if (!isHomepage) {
+      nextCatalog = upsertCatalogJourney(catalog, cleanContent);
+      journeyPage = renderJourneyPage(cleanContent);
+    }
+    const renderedIndex = renderSite(currentIndex, nextCatalog, homepageContent);
+    const sitemap = renderSitemap(nextCatalog);
+
+    let sameContent = false;
+    try {
+      const existing = activeText
+        ? stripInternal(resource.validate(JSON.parse(activeText)))
+        : null;
+      sameContent = Boolean(existing && canonicalJson(existing) === canonicalJson(cleanContent));
+    } catch {
+      sameContent = false;
+    }
+    const sameCatalog = canonicalJson(nextCatalog) === canonicalJson(catalog);
+    const alreadyCurrent = sameContent
+      && renderedIndex === currentIndex
+      && (isHomepage || (journeyPage === currentPage && sameCatalog && sitemap === currentSitemap))
+      && staged.assets.length === 0;
+
+    let result;
     if (alreadyCurrent) {
       const head = await publisher.getHead();
       result = {
@@ -458,26 +625,19 @@ async function publish(actor, event) {
         alreadyCurrent: true,
       };
     } else {
-      let journeyContent;
-      let homepageContent;
-      try {
-        journeyContent = resource.id === 'kanto-6d'
-          ? cleanContent
-          : stripInternal(validateJourney(JSON.parse(journeyText)));
-        homepageContent = resource.id === 'homepage'
-          ? cleanContent
-          : stripInternal(validateHomepage(JSON.parse(homepageText)));
-      } catch {
-        throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中缺少 V32 所需的首页或行程数据文件，请先上传 V32 官网上传包', 409);
-      }
-      const renderedIndex = renderSite(currentIndex, journeyContent, homepageContent);
       const files = [
         { path: 'index.html', content: renderedIndex },
         { path: resource.path, content: `${JSON.stringify(cleanContent, null, 2)}\n` },
+        ...(!isHomepage ? [
+          { path: 'content/journeys/index.json', content: `${JSON.stringify(nextCatalog, null, 2)}\n` },
+          { path: pagePath, content: journeyPage },
+          { path: 'sitemap.xml', content: sitemap },
+        ] : []),
         ...staged.files,
       ];
       result = await publisher.publish(files, message);
     }
+
     const publishedAt = now();
     const latestDraft = await readDoc(COLLECTIONS.drafts, cleanContent.id);
     const latestRevision = Number(latestDraft?.revision) || 0;
@@ -488,7 +648,9 @@ async function publish(actor, event) {
       revision,
       draftAdvanced,
       publishedAt,
-      siteUrl: `${SITE.url}?v=${result.sha.slice(0, 7)}`,
+      siteUrl: isHomepage
+        ? `${SITE.url}?v=${result.sha.slice(0, 7)}`
+        : `${SITE.url}journeys/${resource.id}/?v=${result.sha.slice(0, 7)}`,
     };
 
     const completionTasks = [
@@ -497,7 +659,6 @@ async function publish(actor, event) {
         status: 'completed',
         result: response,
         resourceId: resource.id,
-        ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
         commitSha: result.sha,
         commitUrl: result.commitUrl,
         message,
@@ -506,14 +667,19 @@ async function publish(actor, event) {
         publishedByUid: actor.uid,
         publishedByName: actor.name,
       }),
-      audit(actor, 'publish', { resourceId: resource.id, commitSha: result.sha, alreadyCurrent, draftAdvanced }),
+      audit(actor, 'publish', {
+        resourceId: resource.id,
+        commitSha: result.sha,
+        alreadyCurrent,
+        draftAdvanced,
+      }),
     ];
     if (!draftAdvanced) {
       completionTasks.push(writeDoc(COLLECTIONS.drafts, resource.id, {
         resourceId: resource.id,
-        ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
         content: cleanContent,
         revision,
+        publishedRevision: revision,
         updatedAt: publishedAt,
         updatedBy: actor.email,
         updatedByUid: actor.uid,
@@ -528,7 +694,6 @@ async function publish(actor, event) {
     await writeDoc(COLLECTIONS.publishes, jobId, {
       status: 'failed',
       resourceId: resource.id,
-      ...(resource.id === 'kanto-6d' ? { journeyId: resource.id } : {}),
       message,
       failedAt: now(),
       failedBy: actor.email,
@@ -625,11 +790,13 @@ async function updateStaff(actor, event) {
 
 const ACTIONS = {
   me: { role: 'editor', handler: async (actor) => ({ actor }) },
+  listJourneys: { role: 'editor', handler: async () => ({ items: await listJourneys() }) },
+  createJourney: { role: 'editor', handler: createJourney },
   getContent: { role: 'editor', handler: getContent },
   saveDraft: { role: 'editor', handler: saveDraft },
   stageAsset: { role: 'editor', handler: stageAsset },
-  publish: { role: 'admin', handler: publish },
-  history: { role: 'editor', handler: async (actor, event) => ({ items: await history(event.resourceId || 'kanto-6d') }) },
+  publish: { role: 'admin', handler: publishV33 },
+  history: { role: 'editor', handler: async (actor, event) => ({ items: await history(event.resourceId || 'homepage') }) },
   listStaff: { role: 'admin', handler: async () => listStaff() },
   inviteStaff: { role: 'admin', handler: inviteStaff },
   revokeInvite: { role: 'admin', handler: revokeInvite },
