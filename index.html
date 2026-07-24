@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="asuka-build" content="2026-07-23-v31-3-hero-cta" />
+  <meta name="asuka-build" content="2026-07-24-v32-homepage-cms" />
   <meta name="description" content="飞鸟旅行 Asuka Travel，以日本四季、地方文化、温泉旅宿与专业动线，设计有节奏、有审美、有温度的日本旅程。" />
   <meta name="theme-color" content="#15241e" />
   <meta property="og:type" content="website" />
@@ -11,10 +11,15 @@
   <meta property="og:title" content="飞鸟旅行 Asuka Travel｜日本心旅行" />
   <meta property="og:description" content="不止抵达风景，更走进季节、地方与人的温度。" />
   <meta property="og:url" content="https://z2816372267-dev.github.io/japan-signature-journeys/" />
-  <meta property="og:image" content="https://z2816372267-dev.github.io/japan-signature-journeys/images/responsive/oishi-park-fuji-v22-1600.webp" />
+  <!-- ASUKA_CMS:HOMEPAGE_META_IMAGE:START -->
+      <meta property="og:image" content="https://z2816372267-dev.github.io/japan-signature-journeys/images/responsive/japan-traditional-street-v22-960.jpg" />
+  <meta property="og:image:alt" content="日本传统街町实景" />
+      <!-- ASUKA_CMS:HOMEPAGE_META_IMAGE:END -->
   <link rel="canonical" href="https://z2816372267-dev.github.io/japan-signature-journeys/" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="preload" as="image" href="images/responsive/japan-traditional-street-v22-960.webp" imagesrcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" imagesizes="100vw" type="image/webp" fetchpriority="high" />
+  <!-- ASUKA_CMS:HOMEPAGE_PRELOAD:START -->
+      <link rel="preload" as="image" href="images/responsive/japan-traditional-street-v22-960.webp" imagesrcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" imagesizes="100vw" type="image/webp" fetchpriority="high" />
+      <!-- ASUKA_CMS:HOMEPAGE_PRELOAD:END -->
   <title>飞鸟旅行 Asuka Travel｜日本心旅行</title>
   <style>
     :root{--ink:#15241e;--moss:#24483b;--paper:#f6f3ec;--sand:#e4ddd0;--gold:#a99067;--line:#d5cfc3;--muted:#69736d}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Serif SC","Songti SC","STSong",serif}body.lock{overflow:hidden}a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit}.wrap{max-width:1260px;margin:auto;padding:0 54px}.eyebrow{font:10px Arial,sans-serif;letter-spacing:.28em;color:var(--gold)}.rule{width:42px;height:1px;background:var(--gold);margin:25px 0}.section{padding-top:118px;padding-bottom:118px}.section-title{font-size:clamp(37px,4.2vw,61px);font-weight:400;line-height:1.45;letter-spacing:.085em;margin:0}.subline{font-size:13px;color:var(--muted);letter-spacing:.07em;line-height:1.9}
@@ -112,31 +117,27 @@
   <header id="header"><a class="brand" href="#top"><span class="brand-cn">飞鸟旅行</span><span class="brand-en">ASUKA TRAVEL</span></a><nav aria-label="官网导航"><a href="#heart" onclick="openPanel('heart');return false">日本心旅行</a><a href="#custom" onclick="openPanel('custom');return false">个性化定制</a><a href="#themes" onclick="openPanel('themes');return false">主题鉴赏行</a><a href="#about" onclick="openPanel('about');return false">关于飞鸟Asuka</a><a href="#voices" onclick="openPanel('voices');return false">贵宾有话说</a><a href="#contact" onclick="openPanel('contact');return false">联络我们</a><a href="#news" onclick="openPanel('news');return false">旅游资讯</a></nav><button class="consult" onclick="openPanel('search')">Search — 行程日期搜寻</button><button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-controls="mobileNavPanel" aria-expanded="false" aria-label="打开官网菜单">菜单 <span aria-hidden="true">☰</span></button></header>
   <div class="mobile-nav-panel" id="mobileNavPanel" hidden><button type="button" onclick="openMobilePanel('search')">行程日期搜寻</button><button type="button" onclick="openMobilePanel('heart')">日本心旅行</button><button type="button" onclick="openMobilePanel('custom')">个性化定制</button><button type="button" onclick="openMobilePanel('themes')">主题鉴赏行</button><button type="button" onclick="openMobilePanel('about')">关于飞鸟 Asuka</button><button type="button" onclick="openMobilePanel('voices')">贵宾有话说</button><button type="button" onclick="openMobilePanel('contact')">联络我们</button><button type="button" onclick="openMobilePanel('news')">旅游资讯</button></div>
   <main id="top">
-    <section class="hero">
+    <!-- ASUKA_CMS:HOMEPAGE_HERO:START -->
+      <section class="hero">
       <div class="hero-slides" aria-hidden="true">
         <div class="hero-slide active">
-          <picture>
-            <source type="image/webp" srcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" sizes="100vw" />
-            <img src="images/responsive/japan-traditional-street-v22-960.jpg" width="2400" height="1655" alt="" loading="eager" decoding="async" fetchpriority="high" />
-          </picture>
+          <picture><source type="image/webp" srcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" sizes="100vw" /><img src="images/responsive/japan-traditional-street-v22-960.jpg" width="2400" height="1655" alt="" loading="eager" decoding="async" fetchpriority="high" /></picture>
         </div>
         <div class="hero-slide">
-          <picture>
-            <source type="image/webp" srcset="images/responsive/kyoto-pagoda-v22-480.webp 480w, images/responsive/kyoto-pagoda-v22-960.webp 960w, images/responsive/kyoto-pagoda-v22-1600.webp 1600w" sizes="100vw" />
-            <img src="images/responsive/kyoto-pagoda-v22-960.jpg" width="2400" height="1602" alt="" loading="lazy" decoding="async" fetchpriority="low" />
-          </picture>
+          <picture><source type="image/webp" srcset="images/responsive/kyoto-pagoda-v22-480.webp 480w, images/responsive/kyoto-pagoda-v22-960.webp 960w, images/responsive/kyoto-pagoda-v22-1600.webp 1600w" sizes="100vw" /><img src="images/responsive/kyoto-pagoda-v22-960.jpg" width="2400" height="1602" alt="" loading="lazy" decoding="async" fetchpriority="low" /></picture>
         </div>
         <div class="hero-slide">
-          <picture>
-            <source type="image/webp" srcset="images/responsive/japan-lanterns-v22-480.webp 480w, images/responsive/japan-lanterns-v22-960.webp 960w, images/responsive/japan-lanterns-v22-1600.webp 1600w" sizes="100vw" />
-            <img src="images/responsive/japan-lanterns-v22-960.jpg" width="2400" height="1600" alt="" loading="lazy" decoding="async" fetchpriority="low" />
-          </picture>
+          <picture><source type="image/webp" srcset="images/responsive/japan-lanterns-v22-480.webp 480w, images/responsive/japan-lanterns-v22-960.webp 960w, images/responsive/japan-lanterns-v22-1600.webp 1600w" sizes="100vw" /><img src="images/responsive/japan-lanterns-v22-960.jpg" width="2400" height="1600" alt="" loading="lazy" decoding="async" fetchpriority="low" /></picture>
         </div>
       </div>
       <div class="hero-inner"><p class="eyebrow" style="color:#eadbc1">ASUKA TRAVEL · JAPAN WITH HEART</p><h1>把日本，<br>过成一段自己的时光</h1><p class="hero-copy">不止抵达风景，更走进季节、地方与人的温度。<br>飞鸟旅行，为你设计值得细细回味的日本旅程。</p><div class="hero-actions"><button class="primary hero-primary" onclick="openPanel('heart')"><span>探索别样日本</span><span class="hero-cta-arrow" aria-hidden="true">→</span></button><a class="link-light hero-secondary" href="#entry"><span>三种旅行方式</span><span class="hero-cta-arrow" aria-hidden="true">↓</span></a></div></div><p class="hero-side">SEASONAL · INTIMATE · JAPAN</p><p class="credit">实景摄影 · 日本传统街町｜图片已存入网站本地目录</p>
     </section>
-    <section class="wrap section intro reveal"><div><p class="eyebrow">OUR WAY OF TRAVEL</p><div class="rule"></div><h2 class="section-title">不是去过日本，<br>而是真正读懂日本</h2></div><div class="intro-copy"><p class="lead">飞鸟旅行相信，真正动人的旅程，来自正确季节里恰到好处的停留。</p><p>我们以日本四季为线索，用专业动线、地方美食、温泉旅宿与文化体验，组织每一段有节奏、有审美、也有温度的旅行。</p></div></section>
-    <section class="asuka-selection section" id="asuka-selection" aria-labelledby="asuka-selection-title">
+      <!-- ASUKA_CMS:HOMEPAGE_HERO:END -->
+    <!-- ASUKA_CMS:HOMEPAGE_INTRO:START -->
+      <section class="wrap section intro reveal"><div><p class="eyebrow">OUR WAY OF TRAVEL</p><div class="rule"></div><h2 class="section-title">不是去过日本，<br>而是真正读懂日本</h2></div><div class="intro-copy"><p class="lead">飞鸟旅行相信，真正动人的旅程，来自正确季节里恰到好处的停留。</p><p>我们以日本四季为线索，用专业动线、地方美食、温泉旅宿与文化体验，组织每一段有节奏、有审美、也有温度的旅行。</p></div></section>
+      <!-- ASUKA_CMS:HOMEPAGE_INTRO:END -->
+    <!-- ASUKA_CMS:HOMEPAGE_SELECTION:START -->
+      <section class="asuka-selection section" id="asuka-selection" aria-labelledby="asuka-selection-title">
       <div class="wrap asuka-selection-head reveal">
         <p class="eyebrow">ASUKA SELECTION</p>
         <div class="rule"></div>
@@ -147,12 +148,9 @@
         <button class="asuka-selection-control asuka-selection-control--prev" id="asukaSelectionPrev" type="button" aria-label="查看上一项飞鸟之选" aria-controls="asukaSelectionViewport">←</button>
         <div class="asuka-selection-viewport" id="asukaSelectionViewport" tabindex="0" role="region" aria-roledescription="轮播" aria-label="飞鸟精选旅行灵感">
           <div class="asuka-selection-track">
-            <article class="asuka-selection-slide is-active" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第1项，共6项：关东山海相逢" aria-current="true">
+            <article class="asuka-selection-slide is-active" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第1项，共6项：关东 · 山海相逢" aria-current="true">
               <div class="asuka-selection-visual">
-                <picture class="asuka-selection-media">
-                  <source type="image/webp" srcset="images/responsive/oishi-park-fuji-v22-480.webp 480w, images/responsive/oishi-park-fuji-v22-960.webp 960w, images/responsive/oishi-park-fuji-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" />
-                  <img src="images/responsive/oishi-park-fuji-v22-960.jpg" width="2200" height="1467" alt="富士山与河口湖大石公园实景" loading="lazy" decoding="async" />
-                </picture>
+                <picture class="asuka-selection-media"><source type="image/webp" srcset="images/responsive/oishi-park-fuji-v22-480.webp 480w, images/responsive/oishi-park-fuji-v22-960.webp 960w, images/responsive/oishi-park-fuji-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" /><img src="images/responsive/oishi-park-fuji-v22-960.jpg" width="2200" height="1467" alt="富士山与河口湖大石公园实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
                 <span class="asuka-selection-place">KANTO · 关东</span>
                 <span class="asuka-selection-count" aria-hidden="true"><strong>01</strong><span></span><small>06</small></span>
               </div>
@@ -161,12 +159,9 @@
                 <div class="asuka-selection-copy"><p>从富士湖畔、箱根山水到伊豆海岸与镰仓街町，让山、海、温泉与城市在六天里自然衔接。</p><a class="asuka-selection-link" href="#kantoJourney" onclick="openKantoJourney();return false">查看关东山海6日 <span aria-hidden="true">→</span></a></div>
               </div>
             </article>
-            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第2项，共6项：关西古都日常">
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第2项，共6项：关西 · 古都日常">
               <div class="asuka-selection-visual">
-                <picture class="asuka-selection-media">
-                  <source type="image/webp" srcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" />
-                  <img src="images/responsive/japan-traditional-street-v22-960.jpg" width="2400" height="1655" alt="日本古都传统街町实景" loading="lazy" decoding="async" />
-                </picture>
+                <picture class="asuka-selection-media"><source type="image/webp" srcset="images/responsive/japan-traditional-street-v22-480.webp 480w, images/responsive/japan-traditional-street-v22-960.webp 960w, images/responsive/japan-traditional-street-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" /><img src="images/responsive/japan-traditional-street-v22-960.jpg" width="2400" height="1655" alt="日本古都传统街町实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
                 <span class="asuka-selection-place">KANSAI · 关西</span>
                 <span class="asuka-selection-count" aria-hidden="true"><strong>02</strong><span></span><small>06</small></span>
               </div>
@@ -175,12 +170,9 @@
                 <div class="asuka-selection-copy"><p>在京都、大阪与奈良之间放慢脚步，让寺社、街町、庭园与地方滋味回到日常可感的尺度。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
               </div>
             </article>
-            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第3项，共6项：东北雪国慢行">
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第3项，共6项：东北 · 雪国慢行">
               <div class="asuka-selection-visual">
-                <picture class="asuka-selection-media">
-                  <source type="image/webp" srcset="images/responsive/tohoku-snow-v22-480.webp 480w, images/responsive/tohoku-snow-v22-960.webp 960w, images/responsive/tohoku-snow-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" />
-                  <img src="images/responsive/tohoku-snow-v22-960.jpg" width="2400" height="1600" alt="日本东北雪国聚落实景" loading="lazy" decoding="async" />
-                </picture>
+                <picture class="asuka-selection-media"><source type="image/webp" srcset="images/responsive/tohoku-snow-v22-480.webp 480w, images/responsive/tohoku-snow-v22-960.webp 960w, images/responsive/tohoku-snow-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" /><img src="images/responsive/tohoku-snow-v22-960.jpg" width="2400" height="1600" alt="日本东北雪国聚落实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
                 <span class="asuka-selection-place">TOHOKU · 东北</span>
                 <span class="asuka-selection-count" aria-hidden="true"><strong>03</strong><span></span><small>06</small></span>
               </div>
@@ -189,12 +181,9 @@
                 <div class="asuka-selection-copy"><p>循着山形、青森与仙台的冬日景色，把雪见温泉、山间聚落与东北风土编成一段从容慢旅。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
               </div>
             </article>
-            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第4项，共6项：四国海岛微光">
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第4项，共6项：四国 · 海岛微光">
               <div class="asuka-selection-visual">
-                <picture class="asuka-selection-media">
-                  <source type="image/webp" srcset="images/responsive/setouchi-sea-v22-480.webp 480w, images/responsive/setouchi-sea-v22-960.webp 960w, images/responsive/setouchi-sea-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" />
-                  <img src="images/responsive/setouchi-sea-v22-960.jpg" width="2400" height="1597" alt="濑户内海岛屿与海面实景" loading="lazy" decoding="async" />
-                </picture>
+                <picture class="asuka-selection-media"><source type="image/webp" srcset="images/responsive/setouchi-sea-v22-480.webp 480w, images/responsive/setouchi-sea-v22-960.webp 960w, images/responsive/setouchi-sea-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" /><img src="images/responsive/setouchi-sea-v22-960.jpg" width="2400" height="1597" alt="濑户内海岛屿与海面实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
                 <span class="asuka-selection-place">SHIKOKU · 四国</span>
                 <span class="asuka-selection-count" aria-hidden="true"><strong>04</strong><span></span><small>06</small></span>
               </div>
@@ -203,12 +192,9 @@
                 <div class="asuka-selection-copy"><p>沿着濑户内海的光线串联香川、爱媛与海岛，在艺术、温泉和海风之间留出真正的停顿。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
               </div>
             </article>
-            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第5项，共6项：九州温泉南行">
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第5项，共6项：九州 · 温泉南行">
               <div class="asuka-selection-visual">
-                <picture class="asuka-selection-media">
-                  <source type="image/webp" srcset="images/responsive/kyushu-city-v22-480.webp 480w, images/responsive/kyushu-city-v22-960.webp 960w, images/responsive/kyushu-city-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" />
-                  <img src="images/responsive/kyushu-city-v22-960.jpg" width="2400" height="1600" alt="日本九州城市与山海实景" loading="lazy" decoding="async" />
-                </picture>
+                <picture class="asuka-selection-media"><source type="image/webp" srcset="images/responsive/kyushu-city-v22-480.webp 480w, images/responsive/kyushu-city-v22-960.webp 960w, images/responsive/kyushu-city-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" /><img src="images/responsive/kyushu-city-v22-960.jpg" width="2400" height="1600" alt="日本九州城市与山海实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
                 <span class="asuka-selection-place">KYUSHU · 九州</span>
                 <span class="asuka-selection-count" aria-hidden="true"><strong>05</strong><span></span><small>06</small></span>
               </div>
@@ -217,12 +203,9 @@
                 <div class="asuka-selection-copy"><p>从福冈向南，在火山地貌、温泉乡与地方料理之间，感受九州热烈而松弛的旅行节奏。</p><a class="asuka-selection-link" href="#heart" onclick="openPanel('heart');return false">进入日本心旅行 <span aria-hidden="true">→</span></a></div>
               </div>
             </article>
-            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第6项，共6项：北海道粉雪北境">
+            <article class="asuka-selection-slide" data-selection-slide role="group" aria-roledescription="幻灯片" aria-label="第6项，共6项：北海道 · 粉雪北境">
               <div class="asuka-selection-visual">
-                <picture class="asuka-selection-media">
-                  <source type="image/webp" srcset="images/responsive/hokkaido-snow-v22-480.webp 480w, images/responsive/hokkaido-snow-v22-960.webp 960w, images/responsive/hokkaido-snow-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" />
-                  <img src="images/responsive/hokkaido-snow-v22-960.jpg" width="2400" height="1622" alt="北海道粉雪与冬日树林实景" loading="lazy" decoding="async" />
-                </picture>
+                <picture class="asuka-selection-media"><source type="image/webp" srcset="images/responsive/hokkaido-snow-v22-480.webp 480w, images/responsive/hokkaido-snow-v22-960.webp 960w, images/responsive/hokkaido-snow-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), (max-width:1080px) 64vw, (max-width:1607px) 56vw, 900px" /><img src="images/responsive/hokkaido-snow-v22-960.jpg" width="2400" height="1622" alt="北海道粉雪与冬日树林实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
                 <span class="asuka-selection-place">HOKKAIDO · 北海道</span>
                 <span class="asuka-selection-count" aria-hidden="true"><strong>06</strong><span></span><small>06</small></span>
               </div>
@@ -234,26 +217,29 @@
           </div>
         </div>
         <button class="asuka-selection-control asuka-selection-control--next" id="asukaSelectionNext" type="button" aria-label="查看下一项飞鸟之选" aria-controls="asukaSelectionViewport">→</button>
-        <p class="asuka-selection-status" id="asukaSelectionStatus" aria-live="polite">第1项，共6项：关东山海相逢</p>
+        <p class="asuka-selection-status" id="asukaSelectionStatus" aria-live="polite">第1项，共6项：关东 · 山海相逢</p>
       </div>
     </section>
-    <section class="entry section" id="entry">
+      <!-- ASUKA_CMS:HOMEPAGE_SELECTION:END -->
+    <!-- ASUKA_CMS:HOMEPAGE_WAYS:START -->
+      <section class="entry section" id="entry">
       <div class="wrap entry-head reveal"><div><p class="eyebrow">THREE WAYS TO JAPAN</p><div class="rule"></div><h2 class="section-title">选择你的出发方式</h2></div><p class="subline">同一个日本，不止一种抵达方式。</p></div>
       <div class="wrap entry-grid">
         <article class="entry-card reveal" onclick="openPanel('heart')">
-          <picture class="entry-bg"><source type="image/webp" srcset="images/responsive/oishi-park-fuji-v22-480.webp 480w, images/responsive/oishi-park-fuji-v22-960.webp 960w, images/responsive/oishi-park-fuji-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 390px" /><img src="images/responsive/oishi-park-fuji-v22-960.jpg" width="2200" height="1467" alt="富士山与河口湖实景" loading="lazy" decoding="async" /></picture>
+          <picture class="entry-bg"><source type="image/webp" srcset="images/responsive/oishi-park-fuji-v22-480.webp 480w, images/responsive/oishi-park-fuji-v22-960.webp 960w, images/responsive/oishi-park-fuji-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 390px" /><img src="images/responsive/oishi-park-fuji-v22-960.jpg" width="2200" height="1467" alt="富士山与河口湖实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
           <small>01 · CURATED GROUPS</small><h3>日本心旅行</h3><p>精致团跟团产品。以季节、地方文化与极上宿为核心，重新设计跟团旅行的体验。</p><span>进入八大地区 →</span>
         </article>
         <article class="entry-card reveal" style="transition-delay:.1s" onclick="openPanel('custom')">
-          <picture class="entry-bg"><source type="image/webp" srcset="images/responsive/sakura-river-v22-480.webp 480w, images/responsive/sakura-river-v22-960.webp 960w, images/responsive/sakura-river-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 390px" /><img src="images/responsive/sakura-river-v22-960.jpg" width="2400" height="1590" alt="日本樱花实景" loading="lazy" decoding="async" /></picture>
+          <picture class="entry-bg"><source type="image/webp" srcset="images/responsive/sakura-river-v22-480.webp 480w, images/responsive/sakura-river-v22-960.webp 960w, images/responsive/sakura-river-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 390px" /><img src="images/responsive/sakura-river-v22-960.jpg" width="2400" height="1590" alt="日本樱花实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
           <small>02 · BESPOKE JOURNEY</small><h3>个性化定制</h3><p>从旅行日期、同行人到兴趣偏好，为你从零设计只属于这一次出发的日本。</p><span>开始填写需求 →</span>
         </article>
         <article class="entry-card reveal" style="transition-delay:.2s" onclick="openPanel('themes')">
-          <picture class="entry-bg"><source type="image/webp" srcset="images/responsive/japan-lanterns-v22-480.webp 480w, images/responsive/japan-lanterns-v22-960.webp 960w, images/responsive/japan-lanterns-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 390px" /><img src="images/responsive/japan-lanterns-v22-960.jpg" width="2400" height="1600" alt="日本夜间街町与灯笼实景" loading="lazy" decoding="async" /></picture>
+          <picture class="entry-bg"><source type="image/webp" srcset="images/responsive/japan-lanterns-v22-480.webp 480w, images/responsive/japan-lanterns-v22-960.webp 960w, images/responsive/japan-lanterns-v22-1600.webp 1600w" sizes="(max-width:760px) calc(100vw - 42px), 390px" /><img src="images/responsive/japan-lanterns-v22-960.jpg" width="2400" height="1600" alt="日本夜间街町与灯笼实景" loading="lazy" decoding="async" fetchpriority="low" /></picture>
           <small>03 · THEMED JOURNEYS</small><h3>主题鉴赏行</h3><p>从动漫、花火到观光列车与亲子慢游，以一个兴趣主题打开更深入的日本。</p><span>浏览主题灵感 →</span>
         </article>
       </div>
     </section>
+      <!-- ASUKA_CMS:HOMEPAGE_WAYS:END -->
   </main>
   <footer><div class="brand"><span class="brand-cn">飞鸟旅行</span><span class="brand-en">ASUKA TRAVEL</span></div><p>日本心旅行 · 个性化定制 · 主题鉴赏行</p><p>© 2026 ASUKA TRAVEL</p></footer>
   <section class="overlay" id="heart"><div class="wrap overlay-top"><span class="overlay-brand">飞鸟旅行 · 日本心旅行</span><button class="close" onclick="closePanel('heart')">关闭 ×</button></div><div class="wrap overlay-hero"><p class="eyebrow">CURATED JAPAN BY REGION</p><div class="rule"></div><h2>日本心旅行</h2><p class="subline">精致团跟团产品。每个地区都将持续接入具体可销售行程，先从你想去的方向开始。</p></div><div class="wrap regions" id="regions"></div></section>

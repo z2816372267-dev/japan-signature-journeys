@@ -3,11 +3,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
-const { validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
+const { validateHomepage, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
 
 const root = path.resolve(__dirname, '..');
 const indexPath = path.join(root, 'index.html');
 const contentPath = path.join(root, 'content', 'journeys', 'kanto-6d.json');
+const homepagePath = path.join(root, 'content', 'homepage.json');
 const errors = [];
 
 function required(value, label, max = 1000) {
@@ -29,10 +30,16 @@ function checkImage(image, label) {
 }
 
 const data = JSON.parse(fs.readFileSync(contentPath, 'utf8'));
+const homepage = JSON.parse(fs.readFileSync(homepagePath, 'utf8'));
 try {
   validateJourney(data);
 } catch (error) {
   errors.push(`后台发布校验失败：${error.message}`);
+}
+try {
+  validateHomepage(homepage);
+} catch (error) {
+  errors.push(`首页发布校验失败：${error.message}`);
 }
 if (data.schemaVersion !== 1) errors.push('schemaVersion 必须为 1');
 required(data.id, 'id', 64);
@@ -61,8 +68,12 @@ for (const [index, item] of (data.highlights?.items || []).entries()) {
   checkImage(item.image, `highlights.items[${index}].image`);
 }
 
+homepage.hero?.slides?.forEach((slide, index) => checkImage(slide.image, `homepage.hero.slides[${index}].image`));
+homepage.selection?.items?.forEach((item, index) => checkImage(item.image, `homepage.selection.items[${index}].image`));
+homepage.ways?.items?.forEach((item, index) => checkImage(item.image, `homepage.ways.items[${index}].image`));
+
 try {
-  renderSite(fs.readFileSync(indexPath, 'utf8'), data);
+  renderSite(fs.readFileSync(indexPath, 'utf8'), data, homepage);
 } catch (error) {
   errors.push(`静态生成失败：${error.message}`);
 }

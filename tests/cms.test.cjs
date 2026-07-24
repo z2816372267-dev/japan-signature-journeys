@@ -5,14 +5,28 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
-const { migrateAirportMetrics, stripInternal, synchronizeJourney, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
+const {
+  migrateAirportMetrics,
+  stripInternal,
+  synchronizeJourney,
+  validateHomepage,
+  validateJourney,
+} = require('../cloudbase/functions/asuka-cms/lib/validation');
 
 const root = path.resolve(__dirname, '..');
 const data = JSON.parse(fs.readFileSync(path.join(root, 'content/journeys/kanto-6d.json'), 'utf8'));
+const homepage = JSON.parse(fs.readFileSync(path.join(root, 'content/homepage.json'), 'utf8'));
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('关东6日内容通过发布校验', () => {
   assert.equal(validateJourney(structuredClone(data)).id, 'kanto-6d');
+});
+
+test('官网首页内容通过发布校验并固定3张封面、6项精选和3种出发方式', () => {
+  assert.equal(validateHomepage(structuredClone(homepage)).id, 'homepage');
+  assert.equal(homepage.hero.slides.length, 3);
+  assert.equal(homepage.selection.items.length, 6);
+  assert.equal(homepage.ways.items.length, 3);
 });
 
 test('静态生成结果幂等并保留三个CMS区块', () => {
@@ -62,10 +76,11 @@ test('官网行程数据卡与后台预览保持两列并在手机端切换单�
   assert.match(rendered, /@media\(max-width:540px\)\{\.itinerary \.day-metrics\{grid-template-columns:1fr\}/);
 });
 
-test('后台右侧内容跟随六个左侧栏目切换', () => {
+test('后台右侧内容跟随七个左侧栏目切换', () => {
   const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
   const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
   for (const renderer of [
+    'renderHomepagePreview',
     'renderOverviewPreview',
     'renderDaysPreview',
     'renderHighlightsPreview',
@@ -75,7 +90,7 @@ test('后台右侧内容跟随六个左侧栏目切换', () => {
   ]) {
     assert.match(adminSource, new RegExp(`function ${renderer}\\(`));
   }
-  assert.match(adminSource, /const previewRenderers = \{[\s\S]*?overview:[\s\S]*?days:[\s\S]*?highlights:[\s\S]*?stays:[\s\S]*?publish:[\s\S]*?staff:/);
+  assert.match(adminSource, /const previewRenderers = \{[\s\S]*?home:[\s\S]*?overview:[\s\S]*?days:[\s\S]*?highlights:[\s\S]*?stays:[\s\S]*?publish:[\s\S]*?staff:/);
   assert.match(adminSource, /previewRenderers\[state\.tab\]\(state\.content\)/);
   assert.match(adminSource, /elements\.previewTitle\.textContent = title/);
   assert.match(adminSource, /async function selectTab\([\s\S]*?renderEditor\(\);[\s\S]*?renderPreview\(\);/);
@@ -83,12 +98,47 @@ test('后台右侧内容跟随六个左侧栏目切换', () => {
   assert.match(adminStyles, /\.journey-preview\.mobile \.preview-metrics\s*\{\s*grid-template-columns:\s*1fr/);
 });
 
+test('首页四个CMS区块静态生成幂等并保护功能链接', () => {
+  const once = renderSite(html, data, homepage);
+  const twice = renderSite(once, data, homepage);
+  assert.equal(twice, once);
+  for (const marker of ['HOMEPAGE_META_IMAGE', 'HOMEPAGE_PRELOAD', 'HOMEPAGE_HERO', 'HOMEPAGE_INTRO', 'HOMEPAGE_SELECTION', 'HOMEPAGE_WAYS']) {
+    assert.equal((once.match(new RegExp(`ASUKA_CMS:${marker}:START`, 'g')) || []).length, 1);
+  }
+  assert.match(once, /<button class="primary hero-primary" onclick="openPanel\('heart'\)">/);
+  assert.match(once, /href="#entry"/);
+  assert.match(once, /onclick="openKantoJourney\(\);return false"/);
+  assert.equal((once.match(/class="entry-card reveal"/g) || []).length, 3);
+  assert.match(once, /onclick="openPanel\('custom'\)"/);
+  assert.match(once, /onclick="openPanel\('themes'\)"/);
+});
+
+test('更换第一张封面时同步更新兼容分享图与首屏预加载', () => {
+  const changed = structuredClone(homepage);
+  changed.hero.slides[0].image = {
+    ...changed.hero.slides[0].image,
+    webp480: 'images/responsive/kyoto-pagoda-v22-480.webp',
+    webp960: 'images/responsive/kyoto-pagoda-v22-960.webp',
+    webp1600: 'images/responsive/kyoto-pagoda-v22-1600.webp',
+    fallback: 'images/responsive/kyoto-pagoda-v22-960.jpg',
+    alt: '京都古都街町与五重塔“实景”',
+  };
+  const rendered = renderSite(html, data, changed);
+  assert.match(rendered, /property="og:image" content="https:\/\/z2816372267-dev\.github\.io\/japan-signature-journeys\/images\/responsive\/kyoto-pagoda-v22-960\.jpg"/);
+  assert.match(rendered, /property="og:image:alt" content="京都古都街町与五重塔“实景”"/);
+  assert.match(rendered, /rel="preload" as="image" href="images\/responsive\/kyoto-pagoda-v22-960\.webp"/);
+  assert.doesNotMatch(rendered, /property="og:image" content="[^"]*japan-traditional-street/);
+});
+
 test('用户输入会在静态生成时转义', () => {
   const unsafe = structuredClone(data);
   unsafe.card.title = '<script>alert(1)</script>';
-  const rendered = renderSite(html, unsafe);
-  assert.doesNotMatch(rendered, /<script>alert\(1\)<\/script>/);
+  const unsafeHomepage = structuredClone(homepage);
+  unsafeHomepage.intro.title = '<script>alert(2)</script>';
+  const rendered = renderSite(html, unsafe, unsafeHomepage);
+  assert.doesNotMatch(rendered, /<script>alert\([12]\)<\/script>/);
   assert.match(rendered, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(rendered, /&lt;script&gt;alert\(2\)&lt;\/script&gt;/);
 });
 
 test('发布内容会移除仅供后台使用的内部字段', () => {
@@ -186,6 +236,10 @@ test('多人草稿与发布请求具有版本冲突和幂等保护', () => {
   assert.match(source, /PUBLISH_IN_PROGRESS/);
   assert.match(source, /alreadyCurrent/);
   assert.match(source, /markAssetsPublished\(/);
+  assert.match(source, /CONTENT_RESOURCES/);
+  assert.match(source, /resourceId: resource\.id/);
+  assert.match(source, /content\/homepage\.json/);
+  assert.match(source, /renderSite\(currentIndex, journeyContent, homepageContent\)/);
 });
 
 test('响应式图片请求控制在 CloudBase 事件上限以内', () => {
@@ -254,7 +308,7 @@ test('官网进入画面保持纵向品牌结构且不增加外部资源', () =>
 });
 
 test('飞鸟之选使用本地响应式图片并保留中央主图与两侧预告结构', () => {
-  const rendered = renderSite(html, data);
+  const rendered = renderSite(html, data, homepage);
   const start = rendered.indexOf('<section class="asuka-selection');
   const end = rendered.indexOf('<section class="entry section"', start);
   const selection = rendered.slice(start, end);
@@ -273,7 +327,7 @@ test('飞鸟之选使用本地响应式图片并保留中央主图与两侧预�
 });
 
 test('飞鸟之选支持自动轮播、按钮、键盘与手机原生滑动并通过CMS发布保留', () => {
-  const rendered = renderSite(html, data);
+  const rendered = renderSite(html, data, homepage);
 
   assert.match(rendered, /id="asukaSelectionPrev"/);
   assert.match(rendered, /id="asukaSelectionNext"/);
@@ -293,7 +347,7 @@ test('飞鸟之选支持自动轮播、按钮、键盘与手机原生滑动并�
 });
 
 test('首页内容板块收紧比例并为轮播图片提供精确响应式尺寸', () => {
-  const rendered = renderSite(html, data);
+  const rendered = renderSite(html, data, homepage);
 
   assert.match(rendered, /\.intro\.section\{padding-top:92px;padding-bottom:92px\}/);
   assert.match(rendered, /\.asuka-selection\.section\{padding-top:84px;padding-bottom:80px\}/);
@@ -304,12 +358,26 @@ test('首页内容板块收紧比例并为轮播图片提供精确响应式尺�
 });
 
 test('封面行动区使用低干扰深色按钮并显示探索别样日本', () => {
-  const rendered = renderSite(html, data);
+  const rendered = renderSite(html, data, homepage);
 
   assert.match(rendered, /<button class="primary hero-primary"[^>]*><span>探索别样日本<\/span>/);
   assert.doesNotMatch(rendered, />探索日本心旅行</);
   assert.match(rendered, /class="link-light hero-secondary"/);
   assert.match(rendered, /\.hero-primary\{[^}]*background:#10231cba[^}]*backdrop-filter:blur\(7px\)/);
   assert.match(rendered, /\.hero-primary:focus-visible,\.hero-secondary:focus-visible/);
-  assert.match(rendered, /2026-07-23-v31-3-hero-cta/);
+  assert.match(rendered, /2026-07-24-v32-homepage-cms/);
+});
+
+test('统一后台为首页与关东行程保存独立草稿和预览图片', () => {
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  const adminHtml = fs.readFileSync(path.join(root, 'admin-src', 'index.html'), 'utf8');
+  assert.match(adminHtml, /data-tab="home"><span>01<\/span>首页内容/);
+  assert.match(adminHtml, /V32 · 首页统一管理/);
+  assert.match(adminSource, /homepage: createResourceState\(initialHomepage\)/);
+  assert.match(adminSource, /'kanto-6d': createResourceState\(initialContent\)/);
+  assert.match(adminSource, /`asuka-cms:\$\{resourceId\}:draft`/);
+  assert.match(adminSource, /callCms\('getContent', \{ resourceId \}\)/);
+  assert.match(adminSource, /callCms\('saveDraft', \{ resourceId, content: resource\.content/);
+  assert.match(adminSource, /callCms\('stageAsset', \{[\s\S]*?resourceId,/);
+  assert.match(adminSource, /callCms\('publish', \{[\s\S]*?resourceId: state\.resourceId/);
 });
