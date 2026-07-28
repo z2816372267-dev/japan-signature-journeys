@@ -312,36 +312,157 @@ function resetPreviewFocus(tab = state.tab) {
 }
 
 function previewAnchorForPath(path) {
+  const normalizedPath = String(path || '');
   if (state.tab === 'home') {
-    const selectionItem = path.match(/^selection\.items\.(\d+)/);
-    if (selectionItem) return `home-selection-${selectionItem[1]}`;
-    const wayItem = path.match(/^ways\.items\.(\d+)/);
-    if (wayItem) return `home-way-${wayItem[1]}`;
-    if (path.startsWith('selection.')) return 'home-selection';
-    if (path.startsWith('ways.')) return 'home-ways';
-    if (path.startsWith('intro.')) return 'home-intro';
+    const exact = {
+      'hero.eyebrow': 'home-hero-eyebrow',
+      'hero.title': 'home-hero-title',
+      'hero.copy': 'home-hero-copy',
+      'hero.primaryLabel': 'home-hero-primary',
+      'hero.secondaryLabel': 'home-hero-secondary',
+      'hero.credit': 'home-hero-credit',
+      'intro.eyebrow': 'home-intro-eyebrow',
+      'intro.title': 'home-intro-title',
+      'intro.lead': 'home-intro-lead',
+      'intro.copy': 'home-intro-copy',
+      'selection.eyebrow': 'home-selection-eyebrow',
+      'selection.title': 'home-selection-title',
+      'selection.copy': 'home-selection-copy',
+      'ways.eyebrow': 'home-ways-eyebrow',
+      'ways.title': 'home-ways-title',
+      'ways.copy': 'home-ways-copy',
+    };
+    if (exact[normalizedPath]) return exact[normalizedPath];
+    const selectionItem = normalizedPath.match(/^selection\.items\.(\d+)\.(.+)/);
+    if (selectionItem) {
+      const [, index, fieldPath] = selectionItem;
+      if (fieldPath.startsWith('image')) return `home-selection-${index}`;
+      if (fieldPath === 'placeLatin' || fieldPath === 'placeCn') return `home-selection-${index}-place`;
+      return `home-selection-${index}-${fieldPath}`;
+    }
+    const wayItem = normalizedPath.match(/^ways\.items\.(\d+)\.(.+)/);
+    if (wayItem) {
+      const [, index, fieldPath] = wayItem;
+      if (fieldPath.startsWith('image')) return `home-way-${index}`;
+      return `home-way-${index}-${fieldPath}`;
+    }
+    if (normalizedPath.startsWith('hero.slides.')) return 'home-hero';
+    if (normalizedPath.startsWith('selection.')) return 'home-selection';
+    if (normalizedPath.startsWith('ways.')) return 'home-ways';
+    if (normalizedPath.startsWith('intro.')) return 'home-intro';
     return 'home-hero';
   }
   if (state.tab === 'overview') {
-    if (path.startsWith('overview.')) return 'journey-overview';
-    if (path.startsWith('map.')) return 'journey-map';
-    if (path.startsWith('booking.')) return 'journey-booking';
+    const exact = {
+      'card.kicker': 'journey-hero-kicker',
+      'card.title': 'journey-hero-title',
+      'card.summary': 'journey-overview-copy',
+      'card.meta': 'journey-hero-tags',
+      'hero.title': 'journey-hero-title',
+      'hero.status': 'journey-booking-status',
+      'hero.breadcrumb': 'journey-hero-breadcrumb',
+      'hero.copy': 'journey-hero-copy',
+      'hero.tags': 'journey-hero-tags',
+      'overview.title': 'journey-overview-title',
+      'overview.route': 'journey-overview-route',
+      'overview.copy': 'journey-overview-copy',
+      'map.mode': 'journey-map-mode',
+      'map.title': 'journey-map-title',
+      'map.copy': 'journey-map-copy',
+      'map.caption': 'journey-map-caption',
+      'booking.productGroup': 'journey-booking-group',
+      'booking.currentStatus': 'journey-booking-currentStatus',
+      'booking.departure': 'journey-booking-departure',
+      'booking.price': 'journey-booking-price',
+      'booking.travelStyle': 'journey-booking-travelStyle',
+      'seo.title': 'journey-hero-title',
+      'seo.description': 'journey-hero-copy',
+    };
+    if (exact[normalizedPath]) return exact[normalizedPath];
+    const fact = normalizedPath.match(/^overview\.facts\.(\d+)\.(label|value)/);
+    if (fact) return `journey-fact-${fact[1]}-${fact[2]}`;
+    if (normalizedPath.startsWith('hero.image')) return 'journey-hero';
+    if (normalizedPath.startsWith('map.image') || normalizedPath === 'map.alt') return 'journey-map';
+    if (normalizedPath.startsWith('overview.')) return 'journey-overview';
+    if (normalizedPath.startsWith('map.')) return 'journey-map';
+    if (normalizedPath.startsWith('booking.')) return 'journey-booking';
     return 'journey-hero';
   }
-  if (state.tab === 'days') return 'journey-day';
+  if (state.tab === 'days') {
+    const dayField = normalizedPath.match(/^days\.\d+\.(.+)/)?.[1] || '';
+    const exact = {
+      number: 'journey-day-number',
+      title: 'journey-day-title',
+      route: 'journey-day-route',
+      stops: 'journey-day-stops',
+      story: 'journey-day-story',
+      'distance.value': 'journey-day-distance-value',
+      'distance.note': 'journey-day-distance-note',
+      'duration.value': 'journey-day-duration-value',
+      'duration.note': 'journey-day-duration-note',
+      'activity.value': 'journey-day-activity-value',
+      'activity.note': 'journey-day-activity-note',
+      'comfort.value': 'journey-day-comfort-value',
+      'comfort.note': 'journey-day-comfort-note',
+      'meals.breakfast': 'journey-day-breakfast',
+      'meals.lunch': 'journey-day-lunch',
+      'meals.dinner': 'journey-day-dinner',
+      hotel: 'journey-day-hotel',
+      footnote: 'journey-day-footnote',
+    };
+    if (exact[dayField]) return exact[dayField];
+    if (dayField.startsWith('stops.')) return 'journey-day-stops';
+    if (dayField.startsWith('image')) return 'journey-day-image';
+    return 'journey-day';
+  }
   if (state.tab === 'highlights') {
-    const item = path.match(/^highlights\.items\.(\d+)/);
-    return item ? `highlight-${item[1]}` : 'highlights';
+    if (normalizedPath === 'highlights.title') return 'highlights-title';
+    if (normalizedPath === 'highlights.copy') return 'highlights-copy';
+    const item = normalizedPath.match(/^highlights\.items\.(\d+)\.(.+)/);
+    if (!item) return 'highlights';
+    if (item[2].startsWith('image')) return `highlight-${item[1]}`;
+    return `highlight-${item[1]}-${item[2]}`;
   }
   if (state.tab === 'stays') {
-    const group = path.match(/^stays\.groups\.(\d+)/);
-    if (group) return `stay-${group[1]}`;
-    if (path.startsWith('notes.')) return 'journey-notes';
+    if (normalizedPath === 'stays.title') return 'stays-title';
+    if (normalizedPath === 'stays.copy') return 'stays-copy';
+    const group = normalizedPath.match(/^stays\.groups\.(\d+)\.(.+)/);
+    if (group) {
+      const fieldPath = group[2].startsWith('hotels') ? 'hotels' : group[2];
+      return `stay-${group[1]}-${fieldPath}`;
+    }
+    if (normalizedPath === 'notes.title') return 'journey-notes-title';
+    if (normalizedPath === 'notes.copy') return 'journey-notes-copy';
+    if (normalizedPath === 'notes.photoDisclaimer') return 'journey-notes-disclaimer';
+    const note = normalizedPath.match(/^notes\.items\.(\d+)\.(title|copy)/);
+    if (note) return `journey-note-${note[1]}-${note[2]}`;
+    if (normalizedPath.startsWith('notes.')) return 'journey-notes';
     return 'stays';
   }
-  if (state.tab === 'publish') return path.includes('history') ? 'publish-history' : 'publish-check';
+  if (state.tab === 'publish') return normalizedPath.includes('history') ? 'publish-history' : 'publish-check';
   if (state.tab === 'staff') return 'staff-team';
   return defaultPreviewFocus().anchor;
+}
+
+const EDITOR_PREVIEW_SELECTOR = [
+  '[data-path]',
+  '[data-array-path]',
+  '[data-image-upload]',
+  '[data-image-alt]',
+  '[data-image-card]',
+  '[data-season-select]',
+  '[data-preview-path]',
+  '[data-add-array]',
+  '[data-remove-array]',
+].join(',');
+
+function editorPreviewControlFromTarget(target) {
+  if (!(target instanceof Element)) return null;
+  const direct = target.closest(EDITOR_PREVIEW_SELECTOR);
+  if (direct && elements.editorCanvas.contains(direct)) return direct;
+  const card = target.closest('.form-card');
+  const firstControl = card?.querySelector(EDITOR_PREVIEW_SELECTOR);
+  return firstControl && elements.editorCanvas.contains(firstControl) ? firstControl : null;
 }
 
 function editorControlPath(control) {
@@ -350,6 +471,10 @@ function editorControlPath(control) {
     || control.dataset.arrayPath
     || control.dataset.imageUpload
     || control.dataset.imageAlt
+    || control.dataset.imageCard
+    || control.dataset.previewPath
+    || control.dataset.addArray
+    || control.dataset.removeArray
     || '';
 }
 
@@ -390,31 +515,50 @@ function applyPreviewFocus(options = {}) {
   target.classList.add('is-preview-focus');
   const tag = document.createElement('span');
   tag.className = 'preview-focus-tag';
-  tag.textContent = '正在编辑这里';
+  tag.textContent = focus.fieldLabel ? `编辑 · ${focus.fieldLabel}` : '正在编辑这里';
   target.append(tag);
   if (options.scroll) requestAnimationFrame(() => scrollPreviewToTarget(target));
 }
 
-function focusPreviewForControl(control) {
+function previewPathNote(path) {
+  if (path.startsWith('seo.')) return '此内容用于浏览器、搜索和分享，不显示在页面正文；右侧以对应的标题或介绍位置提示归属。';
+  if (path === 'card.summary' || path.startsWith('card.meta')) return '此内容显示在官网行程列表卡片；右侧以详情页中最接近的内容位置提示归属。';
+  if (['id', 'productCode', 'regionId', 'booking.maxGuests'].includes(path) || path.startsWith('management.')) {
+    return '这是后台管理或发布控制字段，不直接显示在页面正文；右侧以相关页面区域提示归属。';
+  }
+  return '';
+}
+
+function focusPreviewForControl(control, options = {}) {
   const path = editorControlPath(control);
   if (!path) return;
   const slide = path.match(/^hero\.slides\.(\d+)/);
-  if (state.tab === 'home' && slide) state.homepagePreviewSlide = Number(slide[1]);
+  const nextSlide = state.tab === 'home' && slide ? Number(slide[1]) : state.homepagePreviewSlide;
+  const slideChanged = nextSlide !== state.homepagePreviewSlide;
+  if (slideChanged) state.homepagePreviewSlide = nextSlide;
   const fieldLabel = editorControlLabel(control);
   const cardTitle = editorCardTitle(control);
   const resourceLabel = state.tab === 'home' ? '官网首页' : currentResourceMeta().shortLabel;
-  const hiddenFromBody = path.startsWith('seo.');
+  const pathNote = previewPathNote(path);
+  const anchor = previewAnchorForPath(path);
+  const previousFocus = state.previewFocus;
+  const focusChanged = previousFocus?.path !== path
+    || previousFocus?.tab !== state.tab
+    || previousFocus?.resourceId !== state.resourceId
+    || previousFocus?.anchor !== anchor;
   state.previewFocus = {
     tab: state.tab,
     resourceId: state.resourceId,
-    anchor: previewAnchorForPath(path),
-    title: `${resourceLabel} · ${cardTitle}`,
-    hint: hiddenFromBody
-      ? `当前字段：${fieldLabel || '搜索与分享信息'}。此内容不会显示在页面正文中，右侧以行程首屏确认页面归属。`
-      : `当前字段：${fieldLabel || cardTitle}。右侧已经定位并高亮它在页面中的对应位置。`,
+    path,
+    fieldLabel,
+    anchor,
+    title: `${resourceLabel} · ${cardTitle}${fieldLabel ? ` · ${fieldLabel}` : ''}`,
+    hint: pathNote
+      ? `当前字段：${fieldLabel || cardTitle}。${pathNote}`
+      : `当前字段：${fieldLabel || cardTitle}。右侧已定位并高亮它在页面中的实际位置。`,
   };
-  if (state.tab === 'home' && slide) renderPreview();
-  applyPreviewFocus({ scroll: true });
+  if (slideChanged) renderPreview();
+  applyPreviewFocus({ scroll: options.scroll !== false && (focusChanged || options.forceScroll) });
 }
 
 function localDraftKey(resourceId = state.resourceId) {
@@ -497,7 +641,7 @@ function field(label, path, options = {}) {
   const input = options.textarea
     ? `<textarea data-path="${escapeHtml(path)}" data-max="${max}" data-size="${escapeHtml(options.size || 'short')}" maxlength="${max}"${readonly}>${escapeHtml(value)}</textarea>`
     : `<input data-path="${escapeHtml(path)}" data-max="${max}" maxlength="${max}" value="${escapeHtml(value)}" type="${escapeHtml(options.type || 'text')}"${readonly} />`;
-  return `<div class="field${full}">
+  return `<div class="field${full}" data-preview-path="${escapeHtml(path)}">
     <label>${escapeHtml(label)}</label>
     ${input}
     <div class="field-help"><span>${escapeHtml(help)}</span><span data-counter-for="${escapeHtml(path)}">${String(value).length}/${max}</span></div>
@@ -507,7 +651,7 @@ function field(label, path, options = {}) {
 function selectField(label, path, items, options = {}) {
   const value = String(getPath(path) ?? '');
   const full = options.full === false ? '' : ' full';
-  return `<div class="field${full}">
+  return `<div class="field${full}" data-preview-path="${escapeHtml(path)}">
     <label>${escapeHtml(label)}</label>
     <select data-path="${escapeHtml(path)}">
       ${items.map((item) => `<option value="${escapeHtml(item.value)}"${String(item.value) === value ? ' selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
@@ -519,7 +663,7 @@ function selectField(label, path, items, options = {}) {
 function numberField(label, path, options = {}) {
   const value = Number(getPath(path) ?? options.min ?? 0);
   const full = options.full === false ? '' : ' full';
-  return `<div class="field${full}">
+  return `<div class="field${full}" data-preview-path="${escapeHtml(path)}">
     <label>${escapeHtml(label)}</label>
     <input data-path="${escapeHtml(path)}" data-value-type="number" type="number" min="${Number(options.min ?? 0)}" max="${Number(options.max ?? 9999)}" step="${Number(options.step ?? 1)}" value="${value}" />
     ${options.help ? `<div class="field-help"><span>${escapeHtml(options.help)}</span><span></span></div>` : ''}
@@ -528,7 +672,7 @@ function numberField(label, path, options = {}) {
 
 function seasonSelector() {
   const selected = state.content.management?.season || 'all';
-  return `<div class="season-template-grid full">
+  return `<div class="season-template-grid full" data-preview-path="management.season">
     ${SEASONS.map((season) => `<button class="season-template${season.id === selected ? ' active' : ''}" data-season-select="${season.id}" type="button" style="--season-paper:${season.palette[0]};--season-ink:${season.palette[1]};--season-accent:${season.palette[2]}">
       <span><i></i><i></i><i></i></span>
       <strong>${escapeHtml(season.label)}</strong>
@@ -539,7 +683,7 @@ function seasonSelector() {
 
 function arrayEditor(label, path, options = {}) {
   const items = getPath(path) || [];
-  return `<div class="field full">
+  return `<div class="field full" data-preview-path="${escapeHtml(path)}">
     <label>${escapeHtml(label)}</label>
     <div class="array-editor">
       ${items.map((item, index) => `<span class="array-chip"><input data-array-path="${escapeHtml(path)}" data-array-index="${index}" value="${escapeHtml(item)}" maxlength="${options.max || 80}" aria-label="${escapeHtml(label)} ${index + 1}" /><button data-remove-array="${escapeHtml(path)}" data-remove-index="${index}" type="button" aria-label="删除">×</button></span>`).join('')}
@@ -553,7 +697,7 @@ function imageUploader(label, path, image, help) {
   const preview = currentImageUrl(path, image);
   const altPath = `${path}.alt`;
   const alt = image?.alt || '';
-  return `<div class="field full">
+  return `<div class="field full" data-preview-path="${escapeHtml(path)}">
     <span class="image-label">${escapeHtml(label)}</span>
     <div class="image-uploader" data-image-card="${escapeHtml(path)}">
       <div class="image-preview-thumb">
@@ -703,7 +847,7 @@ function renderJourneysEditor() {
 }
 
 function overviewFactEditor(index) {
-  return `<div class="metric-editor"><small>OVERVIEW FACT ${index + 1}</small>
+  return `<div class="metric-editor" data-preview-path="overview.facts.${index}.value"><small>OVERVIEW FACT ${index + 1}</small>
     <input data-path="overview.facts.${index}.label" data-max="30" maxlength="30" value="${escapeHtml(state.content.overview.facts[index]?.label || '')}" aria-label="概览信息${index + 1}英文标签" />
     <input data-path="overview.facts.${index}.value" data-max="120" maxlength="120" value="${escapeHtml(state.content.overview.facts[index]?.value || '')}" aria-label="概览信息${index + 1}内容" />
   </div>`;
@@ -781,7 +925,7 @@ function metricEditor(dayPath, key, eyebrow, label) {
   const valueControl = multiline
     ? `<textarea data-path="${dayPath}.${key}.value" data-max="120" data-size="metric" maxlength="120" aria-label="${escapeHtml(label)}" placeholder="多条路线时，每条路线占一行">${escapeHtml(metric?.value || '')}</textarea>`
     : `<input data-path="${dayPath}.${key}.value" data-max="120" maxlength="120" value="${escapeHtml(metric?.value || '')}" aria-label="${escapeHtml(label)}" />`;
-  return `<div class="metric-editor"><small>${escapeHtml(eyebrow)} · ${escapeHtml(label)}</small>
+  return `<div class="metric-editor" data-preview-path="${escapeHtml(dayPath)}.${escapeHtml(key)}.value"><small>${escapeHtml(eyebrow)} · ${escapeHtml(label)}</small>
     ${valueControl}
     <input data-path="${dayPath}.${key}.note" data-max="160" maxlength="160" value="${escapeHtml(metric?.note || '')}" aria-label="${escapeHtml(label)}补充说明" placeholder="补充说明" />
   </div>`;
@@ -1253,8 +1397,12 @@ function schedulePreview() {
   state.previewFrame = requestAnimationFrame(renderPreview);
 }
 
-function previewSectionTitle(kicker, title, copy) {
-  return `<header class="preview-section-title"><small>${escapeHtml(kicker)}</small><h3>${escapeHtml(title)}</h3>${copy ? `<p>${escapeHtml(copy)}</p>` : ''}</header>`;
+function previewAnchorAttribute(anchor) {
+  return anchor ? ` data-preview-anchor="${escapeHtml(anchor)}"` : '';
+}
+
+function previewSectionTitle(kicker, title, copy, anchorPrefix = '') {
+  return `<header class="preview-section-title"><small${previewAnchorAttribute(anchorPrefix ? `${anchorPrefix}-eyebrow` : '')}>${escapeHtml(kicker)}</small><h3${previewAnchorAttribute(anchorPrefix ? `${anchorPrefix}-title` : '')}>${escapeHtml(title)}</h3>${copy || anchorPrefix ? `<p${previewAnchorAttribute(anchorPrefix ? `${anchorPrefix}-copy` : '')}>${escapeHtml(copy || '尚未填写')}</p>` : ''}</header>`;
 }
 
 function metricLines(value) {
@@ -1267,39 +1415,40 @@ function previewMetricRoute(line) {
   return `<span class="preview-metric-route"><span>${escapeHtml(line.slice(0, separator))}</span><b>${escapeHtml(line.slice(separator + 1))}</b></span>`;
 }
 
-function previewMetric(eyebrow, label, metric) {
+function previewMetric(eyebrow, label, metric, anchor) {
   const lines = metricLines(metric?.value || '待补充');
   const note = metric?.note || '';
+  const noteMarkup = `<span class="preview-metric-note${note ? '' : ' is-empty'}"${previewAnchorAttribute(`${anchor}-note`)}>${note ? withBreaks(note) : '尚未填写补充说明'}</span>`;
   if (lines.length > 1) {
-    return `<div class="preview-metric preview-metric--routes"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><span class="preview-metric-routes">${lines.map(previewMetricRoute).join('')}</span>${note ? `<span class="preview-metric-note">${withBreaks(note)}</span>` : ''}</div>`;
+    return `<div class="preview-metric preview-metric--routes"${previewAnchorAttribute(anchor)}><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><span class="preview-metric-routes"${previewAnchorAttribute(`${anchor}-value`)}>${lines.map(previewMetricRoute).join('')}</span>${noteMarkup}</div>`;
   }
-  return `<div class="preview-metric"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}：${escapeHtml(lines[0] || '')}</strong>${note ? `<span class="preview-metric-note">${withBreaks(note)}</span>` : ''}</div>`;
+  return `<div class="preview-metric"${previewAnchorAttribute(anchor)}><small>${escapeHtml(eyebrow)}</small><strong${previewAnchorAttribute(`${anchor}-value`)}>${escapeHtml(label)}：${escapeHtml(lines[0] || '')}</strong>${noteMarkup}</div>`;
 }
 
 function renderHomepagePreview(data) {
   const slideIndex = Math.max(0, Math.min(state.homepagePreviewSlide, data.hero.slides.length - 1));
   const heroImage = currentImageUrl(`hero.slides.${slideIndex}.image`, data.hero.slides[slideIndex]?.image);
   return `<section class="preview-home-hero" data-preview-anchor="home-hero"${heroImage ? ` style="background-image:url('${escapeHtml(heroImage)}')"` : ''}>
-      <div class="preview-home-hero-copy"><small>${escapeHtml(data.hero.eyebrow)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${withBreaks(data.hero.copy)}</p><div><span>${escapeHtml(data.hero.primaryLabel)}</span><b>${escapeHtml(data.hero.secondaryLabel)} ↓</b></div></div>
-      <em>${escapeHtml(data.hero.credit)}</em>
+      <div class="preview-home-hero-copy"><small data-preview-anchor="home-hero-eyebrow">${escapeHtml(data.hero.eyebrow)}</small><h2 data-preview-anchor="home-hero-title">${withBreaks(data.hero.title)}</h2><p data-preview-anchor="home-hero-copy">${withBreaks(data.hero.copy)}</p><div><span data-preview-anchor="home-hero-primary">${escapeHtml(data.hero.primaryLabel)}</span><b data-preview-anchor="home-hero-secondary">${escapeHtml(data.hero.secondaryLabel)} ↓</b></div></div>
+      <em data-preview-anchor="home-hero-credit">${escapeHtml(data.hero.credit)}</em>
     </section>
     <div class="preview-home-content">
       <section class="preview-home-intro" data-preview-anchor="home-intro">
-        <div><small>${escapeHtml(data.intro.eyebrow)}</small><h3>${withBreaks(data.intro.title)}</h3></div>
-        <div><strong>${withBreaks(data.intro.lead)}</strong><p>${withBreaks(data.intro.copy)}</p></div>
+        <div><small data-preview-anchor="home-intro-eyebrow">${escapeHtml(data.intro.eyebrow)}</small><h3 data-preview-anchor="home-intro-title">${withBreaks(data.intro.title)}</h3></div>
+        <div><strong data-preview-anchor="home-intro-lead">${withBreaks(data.intro.lead)}</strong><p data-preview-anchor="home-intro-copy">${withBreaks(data.intro.copy)}</p></div>
       </section>
       <section class="preview-home-selection" data-preview-anchor="home-selection">
-        ${previewSectionTitle(data.selection.eyebrow, data.selection.title, data.selection.copy)}
+        ${previewSectionTitle(data.selection.eyebrow, data.selection.title, data.selection.copy, 'home-selection')}
         <div class="preview-home-selection-list">${data.selection.items.map((item, index) => {
           const image = currentImageUrl(`selection.items.${index}.image`, item.image);
-          return `<article data-preview-anchor="home-selection-${index}"${index === 0 ? ' class="active"' : ''}>${image ? `<img src="${escapeHtml(image)}" alt="" />` : ''}<div><small>${escapeHtml(item.placeLatin)} · ${escapeHtml(item.placeCn)}</small><span>${escapeHtml(item.kicker)}</span><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
+          return `<article data-preview-anchor="home-selection-${index}"${index === 0 ? ' class="active"' : ''}>${image ? `<img src="${escapeHtml(image)}" alt="" />` : ''}<div><small data-preview-anchor="home-selection-${index}-place">${escapeHtml(item.placeLatin)} · ${escapeHtml(item.placeCn)}</small><span data-preview-anchor="home-selection-${index}-kicker">${escapeHtml(item.kicker)}</span><h4 data-preview-anchor="home-selection-${index}-title">${escapeHtml(item.title)}</h4><p data-preview-anchor="home-selection-${index}-copy">${withBreaks(item.copy)}</p><b data-preview-anchor="home-selection-${index}-ctaLabel">${escapeHtml(item.ctaLabel)} →</b></div></article>`;
         }).join('')}</div>
       </section>
       <section class="preview-home-ways" data-preview-anchor="home-ways">
-        ${previewSectionTitle(data.ways.eyebrow, data.ways.title, data.ways.copy)}
+        ${previewSectionTitle(data.ways.eyebrow, data.ways.title, data.ways.copy, 'home-ways')}
         <div class="preview-home-way-grid">${data.ways.items.map((item, index) => {
           const image = currentImageUrl(`ways.items.${index}.image`, item.image);
-          return `<article data-preview-anchor="home-way-${index}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.kicker)}</small><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
+          return `<article data-preview-anchor="home-way-${index}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small data-preview-anchor="home-way-${index}-kicker">${escapeHtml(item.kicker)}</small><h4 data-preview-anchor="home-way-${index}-title">${escapeHtml(item.title)}</h4><p data-preview-anchor="home-way-${index}-copy">${withBreaks(item.copy)}</p><b data-preview-anchor="home-way-${index}-ctaLabel">${escapeHtml(item.ctaLabel)} →</b></div></article>`;
         }).join('')}</div>
       </section>
     </div>`;
@@ -1333,24 +1482,24 @@ function renderOverviewPreview(data) {
       : '';
   const facts = data.overview.facts || [];
   const bookingItems = [
-    ['CURRENT STATUS', data.booking.currentStatus],
-    ['DEPARTURE', data.booking.departure],
-    ['REFERENCE PRICE', data.booking.price],
-    ['TRAVEL STYLE', data.booking.travelStyle],
+    ['CURRENT STATUS', data.booking.currentStatus, 'currentStatus'],
+    ['DEPARTURE', data.booking.departure, 'departure'],
+    ['REFERENCE PRICE', data.booking.price, 'price'],
+    ['TRAVEL STYLE', data.booking.travelStyle, 'travelStyle'],
   ];
   return `<section class="preview-hero" data-preview-anchor="journey-hero"${hero ? ` style="background-image:url('${escapeHtml(hero)}')"` : ''}>
-      <div class="preview-hero-content"><small>${escapeHtml(data.hero.kicker)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${escapeHtml(data.hero.copy)}</p><div class="preview-tags">${(data.hero.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div></div>
+      <div class="preview-hero-content"><div class="preview-breadcrumb" data-preview-anchor="journey-hero-breadcrumb">${(data.hero.breadcrumb || []).map((item) => escapeHtml(item)).join(' / ')}</div><small data-preview-anchor="journey-hero-kicker">${escapeHtml(data.hero.kicker)}</small><h2 data-preview-anchor="journey-hero-title">${withBreaks(data.hero.title)}</h2><p data-preview-anchor="journey-hero-copy">${escapeHtml(data.hero.copy)}</p><div class="preview-tags" data-preview-anchor="journey-hero-tags">${(data.hero.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div></div>
     </section>
     <div class="preview-content">
       <section class="preview-overview-block" data-preview-anchor="journey-overview">
-        ${previewSectionTitle('JOURNEY OVERVIEW', data.overview.title, data.overview.copy)}
-        <div class="preview-route">${escapeHtml(data.overview.route)}</div>
-        <div class="preview-facts">${facts.map((fact) => `<div><small>${escapeHtml(fact.label)}</small><strong>${escapeHtml(fact.value)}</strong></div>`).join('')}</div>
+        ${previewSectionTitle('JOURNEY OVERVIEW', data.overview.title, data.overview.copy, 'journey-overview')}
+        <div class="preview-route" data-preview-anchor="journey-overview-route">${escapeHtml(data.overview.route)}</div>
+        <div class="preview-facts">${facts.map((fact, index) => `<div><small data-preview-anchor="journey-fact-${index}-label">${escapeHtml(fact.label)}</small><strong data-preview-anchor="journey-fact-${index}-value">${escapeHtml(fact.value)}</strong></div>`).join('')}</div>
       </section>
-      <section class="preview-map-card" data-preview-anchor="journey-map"><small>ROUTE MAP · ${escapeHtml(data.map.mode === 'summary' ? '路线摘要' : '地图图片')}</small><h4>${escapeHtml(data.map.title)}</h4><p>${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : `<div class="preview-route-days">${data.map.days.map((day) => `<span><small>DAY ${escapeHtml(day.number)}</small><b>${escapeHtml(day.title || '待填写')}</b><i>${escapeHtml(day.route || '待填写路线')}</i></span>`).join('')}</div>`}<span>${escapeHtml(data.map.caption)}</span></section>
+      <section class="preview-map-card" data-preview-anchor="journey-map"><small data-preview-anchor="journey-map-mode">ROUTE MAP · ${escapeHtml(data.map.mode === 'summary' ? '路线摘要' : '地图图片')}</small><h4 data-preview-anchor="journey-map-title">${escapeHtml(data.map.title)}</h4><p data-preview-anchor="journey-map-copy">${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : `<div class="preview-route-days">${data.map.days.map((day) => `<span><small>DAY ${escapeHtml(day.number)}</small><b>${escapeHtml(day.title || '待填写')}</b><i>${escapeHtml(day.route || '待填写路线')}</i></span>`).join('')}</div>`}<span data-preview-anchor="journey-map-caption">${escapeHtml(data.map.caption)}</span></section>
       <aside class="preview-booking" data-preview-anchor="journey-booking">
-        <div><small>TRIP INFORMATION</small><h4>${withBreaks(data.booking.title || data.card.title)}</h4><p>${escapeHtml(data.hero.status)}</p></div>
-        <dl>${bookingItems.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '待公布')}</dd></div>`).join('')}</dl>
+        <div><small data-preview-anchor="journey-booking-group">${escapeHtml(data.booking.productGroup || 'TRIP INFORMATION')}</small><h4>${withBreaks(data.booking.title || data.card.title)}</h4><p data-preview-anchor="journey-booking-status">${escapeHtml(data.hero.status)}</p></div>
+        <dl>${bookingItems.map(([label, value, key]) => `<div data-preview-anchor="journey-booking-${key}"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '待公布')}</dd></div>`).join('')}</dl>
       </aside>
     </div>`;
 }
@@ -1368,16 +1517,16 @@ function renderDaysPreview(data) {
       ${previewSectionTitle('DAY BY DAY', `DAY ${day.number} · ${day.title}`, '右侧正在显示左侧当前选中的当天内容。')}
       <div class="preview-day-index" aria-label="当前预览天数">${data.days.map((item, index) => `<span class="${index === state.selectedDay ? 'active' : ''}">${escapeHtml(item.number)}</span>`).join('')}</div>
       <article class="preview-day" data-preview-anchor="journey-day">
-        <header class="preview-day-head"><small>DAY ${escapeHtml(day.number)}</small><h4>${escapeHtml(day.title)}</h4><span>${escapeHtml(day.route)}</span><div class="preview-stops">${day.stops.map((stop) => `<b>${escapeHtml(stop)}</b>`).join('')}</div></header>
-        ${dayImage ? `<img src="${escapeHtml(dayImage)}" alt="" />` : ''}
-        <div class="preview-day-body"><p>${escapeHtml(day.story)}</p><div class="preview-metrics">
-          ${previewMetric('DISTANCE', '行车里程', day.distance)}
-          ${previewMetric('DURATION', '预计驾驶时间', day.duration)}
-          ${previewMetric('ACTIVITY', '体力消耗', day.activity)}
-          ${previewMetric('COMFORT', '舒适度', day.comfort)}
+        <header class="preview-day-head"><small data-preview-anchor="journey-day-number">DAY ${escapeHtml(day.number)}</small><h4 data-preview-anchor="journey-day-title">${escapeHtml(day.title)}</h4><span data-preview-anchor="journey-day-route">${escapeHtml(day.route)}</span><div class="preview-stops" data-preview-anchor="journey-day-stops">${day.stops.map((stop) => `<b>${escapeHtml(stop)}</b>`).join('')}</div></header>
+        <div class="preview-day-image${dayImage ? '' : ' is-empty'}" data-preview-anchor="journey-day-image">${dayImage ? `<img src="${escapeHtml(dayImage)}" alt="" />` : '<span>尚未设置当天图片</span>'}</div>
+        <div class="preview-day-body"><p data-preview-anchor="journey-day-story">${escapeHtml(day.story)}</p><div class="preview-metrics">
+          ${previewMetric('DISTANCE', '行车里程', day.distance, 'journey-day-distance')}
+          ${previewMetric('DURATION', '预计驾驶时间', day.duration, 'journey-day-duration')}
+          ${previewMetric('ACTIVITY', '体力消耗', day.activity, 'journey-day-activity')}
+          ${previewMetric('COMFORT', '舒适度', day.comfort, 'journey-day-comfort')}
         </div>
-        <div class="preview-meals">${meals.map(([eyebrow, label, value]) => `<div><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><p>${withBreaks(value || '待确认')}</p></div>`).join('')}</div>
-        ${day.footnote ? `<p class="preview-footnote">${escapeHtml(day.footnote)}</p>` : ''}
+        <div class="preview-meals">${meals.map(([eyebrow, label, value], index) => `<div data-preview-anchor="journey-day-${['breakfast', 'lunch', 'dinner', 'hotel'][index]}"><small>${escapeHtml(eyebrow)}</small><strong>${escapeHtml(label)}</strong><p>${withBreaks(value || '待确认')}</p></div>`).join('')}</div>
+        <p class="preview-footnote${day.footnote ? '' : ' is-empty'}" data-preview-anchor="journey-day-footnote">${escapeHtml(day.footnote || '尚未填写旅行提示')}</p>
         </div>
       </article>
     </div>`;
@@ -1385,22 +1534,22 @@ function renderDaysPreview(data) {
 
 function renderHighlightsPreview(data) {
   return `<div class="preview-content preview-content--highlights" data-preview-anchor="highlights">
-      ${previewSectionTitle('VISUAL STORY', data.highlights.title, data.highlights.copy)}
+      ${previewSectionTitle('VISUAL STORY', data.highlights.title, data.highlights.copy, 'highlights')}
       <div class="preview-highlight-grid">${data.highlights.items.map((item, index) => {
         const image = currentImageUrl(`highlights.items.${index}.image`, item.image);
-        return `<article class="preview-highlight-card${image ? '' : ' empty'}" data-preview-anchor="highlight-${index}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.eyebrow)}</small><h4>${escapeHtml(item.title)}</h4></div></article>`;
+        return `<article class="preview-highlight-card${image ? '' : ' empty'}" data-preview-anchor="highlight-${index}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small data-preview-anchor="highlight-${index}-eyebrow">${escapeHtml(item.eyebrow)}</small><h4 data-preview-anchor="highlight-${index}-title">${escapeHtml(item.title)}</h4></div></article>`;
       }).join('')}</div>
     </div>`;
 }
 
 function renderStaysPreview(data) {
   return `<div class="preview-content preview-content--stays" data-preview-anchor="stays">
-      ${previewSectionTitle('STAYS & NOTES', data.stays.title, data.stays.copy)}
-      <div class="preview-stay-grid">${data.stays.groups.map((group, index) => `<article class="preview-stay-card" data-preview-anchor="stay-${index}"><small>${escapeHtml(group.eyebrow)}</small><h4>${escapeHtml(group.title)}</h4><ul>${group.hotels.map((hotel) => `<li>${escapeHtml(hotel)}</li>`).join('')}</ul><p>${escapeHtml(group.copy)}</p></article>`).join('')}</div>
+      ${previewSectionTitle('STAYS & NOTES', data.stays.title, data.stays.copy, 'stays')}
+      <div class="preview-stay-grid">${data.stays.groups.map((group, index) => `<article class="preview-stay-card" data-preview-anchor="stay-${index}"><small data-preview-anchor="stay-${index}-eyebrow">${escapeHtml(group.eyebrow)}</small><h4 data-preview-anchor="stay-${index}-title">${escapeHtml(group.title)}</h4><div data-preview-anchor="stay-${index}-hotels"><ul>${group.hotels.map((hotel) => `<li>${escapeHtml(hotel)}</li>`).join('')}</ul></div><p data-preview-anchor="stay-${index}-copy">${escapeHtml(group.copy)}</p></article>`).join('')}</div>
       <section class="preview-notes" data-preview-anchor="journey-notes">
-        ${previewSectionTitle('TRAVEL NOTES', data.notes.title, data.notes.copy)}
-        <div class="preview-note-grid">${data.notes.items.map((item) => `<article><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.copy)}</p></article>`).join('')}</div>
-        <p class="preview-disclaimer">${escapeHtml(data.notes.photoDisclaimer)}</p>
+        ${previewSectionTitle('TRAVEL NOTES', data.notes.title, data.notes.copy, 'journey-notes')}
+        <div class="preview-note-grid">${data.notes.items.map((item, index) => `<article><strong data-preview-anchor="journey-note-${index}-title">${escapeHtml(item.title)}</strong><p data-preview-anchor="journey-note-${index}-copy">${escapeHtml(item.copy)}</p></article>`).join('')}</div>
+        <p class="preview-disclaimer" data-preview-anchor="journey-notes-disclaimer">${escapeHtml(data.notes.photoDisclaimer)}</p>
       </section>
     </div>`;
 }
@@ -2050,10 +2199,14 @@ document.querySelectorAll('[data-device]').forEach((button) => button.addEventLi
   document.querySelectorAll('[data-device]').forEach((item) => item.classList.toggle('active', item === button));
   renderPreview();
 }));
-elements.editorCanvas.addEventListener('focusin', (event) => {
-  const control = event.target.closest('[data-path], [data-array-path], [data-image-upload], [data-image-alt], [data-season-select]');
-  if (control && elements.editorCanvas.contains(control)) focusPreviewForControl(control);
-});
+function trackEditorPreview(event, options = {}) {
+  const control = editorPreviewControlFromTarget(event.target);
+  if (control) focusPreviewForControl(control, options);
+}
+
+elements.editorCanvas.addEventListener('focusin', (event) => trackEditorPreview(event), true);
+elements.editorCanvas.addEventListener('click', (event) => trackEditorPreview(event), true);
+elements.editorCanvas.addEventListener('input', (event) => trackEditorPreview(event, { scroll: false }), true);
 
 elements.sendCodeButton.addEventListener('click', sendCode);
 elements.loginForm.addEventListener('submit', login);
