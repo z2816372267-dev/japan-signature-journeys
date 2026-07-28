@@ -62,6 +62,7 @@ function createResourceState(initial) {
 const state = {
   actor: null,
   resourceId: 'homepage',
+  activeJourneyId: initialJourney.id,
   resources: {
     homepage: createResourceState(initialHomepage),
     'kanto-6d': createResourceState(initialJourney),
@@ -75,6 +76,8 @@ const state = {
   verificationInfo: null,
   staff: null,
   previewFrame: 0,
+  previewFocus: null,
+  homepagePreviewSlide: 0,
   modalReturnFocus: null,
 };
 
@@ -116,6 +119,15 @@ const elements = {
   profileRole: document.querySelector('#profileRole'),
   signOutButton: document.querySelector('#signOutButton'),
   mobileMenu: document.querySelector('#mobileMenu'),
+  sidebarClose: document.querySelector('#sidebarClose'),
+  currentJourneyCard: document.querySelector('#currentJourneyCard'),
+  currentJourneyName: document.querySelector('#currentJourneyName'),
+  currentJourneyMeta: document.querySelector('#currentJourneyMeta'),
+  currentJourneyStatus: document.querySelector('#currentJourneyStatus'),
+  journeyStepList: document.querySelector('#journeyStepList'),
+  previewLocation: document.querySelector('#previewLocation'),
+  previewLocationTitle: document.querySelector('#previewLocationTitle'),
+  previewLocationHint: document.querySelector('#previewLocationHint'),
   modalBackdrop: document.querySelector('#modalBackdrop'),
   modalContent: document.querySelector('#modalContent'),
   modalClose: document.querySelector('#modalClose'),
@@ -129,7 +141,7 @@ const TAB_COPY = {
   days: ['DAY BY DAY', '每日行程'],
   highlights: ['VISUAL STORY', '亮点与图片'],
   stays: ['STAYS & NOTES', '酒店与说明'],
-  publish: ['PUBLISH CENTER', '发布管理'],
+  publish: ['PUBLISH CENTER', '预览与发布'],
   staff: ['TEAM ACCESS', '工作人员'],
 };
 
@@ -140,7 +152,7 @@ const PREVIEW_COPY = {
   days: ['LIVE WEBSITE', '每日行程预览'],
   highlights: ['LIVE WEBSITE', '亮点与图片预览'],
   stays: ['LIVE WEBSITE', '酒店与说明预览'],
-  publish: ['PUBLISH STATUS', '发布状态检查'],
+  publish: ['PUBLISH STATUS', '预览与发布检查'],
   staff: ['INTERNAL ACCESS', '工作人员状态'],
 };
 
@@ -189,12 +201,220 @@ initialCatalog.journeys?.forEach((item) => registerJourneyResource(
 ));
 
 function currentResourceMeta() {
-  return RESOURCE_META[state.resourceId] || {
+  const stored = RESOURCE_META[state.resourceId] || {
     label: state.resourceId,
     shortLabel: state.resourceId,
     defaultMessage: `更新${state.resourceId}`,
     initial: null,
   };
+  const liveTitle = isJourneyResource()
+    ? String(state.resources[state.resourceId]?.content?.card?.title || '').replaceAll('\n', ' ').trim()
+    : '';
+  if (!liveTitle) return stored;
+  return {
+    ...stored,
+    label: liveTitle,
+    shortLabel: liveTitle.length > 12 ? `${liveTitle.slice(0, 12)}…` : liveTitle,
+    defaultMessage: `更新${liveTitle}行程`,
+  };
+}
+
+function currentJourneyId() {
+  if (JOURNEY_ID_PATTERN.test(state.activeJourneyId || '')) return state.activeJourneyId;
+  if (isJourneyResource()) return state.resourceId;
+  return state.journeys[0]?.id || initialJourney.id || '';
+}
+
+function updateSidebarContext() {
+  const resourceId = currentJourneyId();
+  const resource = state.resources[resourceId];
+  const item = state.journeys.find((journey) => journey.id === resourceId);
+  const content = resource?.content;
+  const hasJourney = Boolean(resourceId && (resource || item));
+  const title = String(content?.card?.title || item?.title || '尚未选择行程').replaceAll('\n', ' ');
+  const productCode = content?.productCode || item?.productCode || resourceId;
+  const season = seasonById(content?.management?.season || item?.season || 'all');
+  const daysCount = content?.days?.length || item?.daysCount || 0;
+  const visibility = content?.management?.visibility || item?.visibility || 'hidden';
+  let status = visibility === 'hidden' ? '官网隐藏' : '官网展示';
+  let statusTone = visibility === 'hidden' ? 'hidden' : 'published';
+  if (resource?.dirty) {
+    status = '未保存';
+    statusTone = 'dirty';
+  } else if (item?.hasDraft || resource?.draftInfo) {
+    status = '有草稿';
+    statusTone = 'draft';
+  }
+
+  elements.currentJourneyCard.classList.toggle('is-empty', !hasJourney);
+  elements.currentJourneyCard.dataset.status = statusTone;
+  elements.currentJourneyName.textContent = hasJourney ? title : '尚未选择行程';
+  elements.currentJourneyMeta.textContent = hasJourney
+    ? [productCode, season.label, daysCount ? `${daysCount}天` : ''].filter(Boolean).join(' · ')
+    : '请先从“行程管理”选择一项';
+  elements.currentJourneyStatus.textContent = hasJourney ? status : '未选择';
+  elements.journeyStepList.querySelectorAll('[data-tab]').forEach((button) => {
+    button.disabled = !hasJourney;
+  });
+}
+
+function defaultPreviewFocus(tab = state.tab) {
+  const meta = currentResourceMeta();
+  const day = state.content?.days?.[state.selectedDay];
+  const defaults = {
+    home: {
+      anchor: 'home-hero',
+      title: '官网首页 · 首页内容',
+      hint: '右侧显示官网首页；点击或输入任一字段后，会定位并高亮对应区块。',
+    },
+    journeys: {
+      anchor: 'journey-library',
+      title: '行程管理 · 内部目录',
+      hint: '右侧汇总行程数量与状态；此区域仅供后台管理，不会直接出现在官网。',
+    },
+    overview: {
+      anchor: 'journey-hero',
+      title: `${meta.shortLabel} · 产品概览`,
+      hint: '右侧显示当前行程的官网首屏与概览；选择字段后会定位到更具体的位置。',
+    },
+    days: {
+      anchor: 'journey-day',
+      title: `${meta.shortLabel} · DAY ${day?.number || '01'}`,
+      hint: `右侧正在显示“${day?.title || '尚未填写标题'}”这一天的官网内容。`,
+    },
+    highlights: {
+      anchor: 'highlights',
+      title: `${meta.shortLabel} · 亮点与图片`,
+      hint: '右侧显示当前行程的旅行亮点区；选择某一张卡片后会单独高亮。',
+    },
+    stays: {
+      anchor: 'stays',
+      title: `${meta.shortLabel} · 酒店与说明`,
+      hint: '右侧显示住宿甄选与行程说明；选择字段后会定位到对应分组。',
+    },
+    publish: {
+      anchor: 'publish-status',
+      title: `${meta.shortLabel} · 预览与发布`,
+      hint: '右侧是内部发布检查，不会出现在游客看到的官网页面中。',
+    },
+    staff: {
+      anchor: 'staff-status',
+      title: '后台设置 · 工作人员',
+      hint: '右侧是账号与权限概览，仅供后台内部查看。',
+    },
+  };
+  return { ...defaults[tab], tab, resourceId: state.resourceId };
+}
+
+function resetPreviewFocus(tab = state.tab) {
+  state.previewFocus = defaultPreviewFocus(tab);
+  if (tab === 'home') state.homepagePreviewSlide = 0;
+}
+
+function previewAnchorForPath(path) {
+  if (state.tab === 'home') {
+    const selectionItem = path.match(/^selection\.items\.(\d+)/);
+    if (selectionItem) return `home-selection-${selectionItem[1]}`;
+    const wayItem = path.match(/^ways\.items\.(\d+)/);
+    if (wayItem) return `home-way-${wayItem[1]}`;
+    if (path.startsWith('selection.')) return 'home-selection';
+    if (path.startsWith('ways.')) return 'home-ways';
+    if (path.startsWith('intro.')) return 'home-intro';
+    return 'home-hero';
+  }
+  if (state.tab === 'overview') {
+    if (path.startsWith('overview.')) return 'journey-overview';
+    if (path.startsWith('map.')) return 'journey-map';
+    if (path.startsWith('booking.')) return 'journey-booking';
+    return 'journey-hero';
+  }
+  if (state.tab === 'days') return 'journey-day';
+  if (state.tab === 'highlights') {
+    const item = path.match(/^highlights\.items\.(\d+)/);
+    return item ? `highlight-${item[1]}` : 'highlights';
+  }
+  if (state.tab === 'stays') {
+    const group = path.match(/^stays\.groups\.(\d+)/);
+    if (group) return `stay-${group[1]}`;
+    if (path.startsWith('notes.')) return 'journey-notes';
+    return 'stays';
+  }
+  if (state.tab === 'publish') return path.includes('history') ? 'publish-history' : 'publish-check';
+  if (state.tab === 'staff') return 'staff-team';
+  return defaultPreviewFocus().anchor;
+}
+
+function editorControlPath(control) {
+  if (control.matches('[data-season-select]')) return 'management.season';
+  return control.dataset.path
+    || control.dataset.arrayPath
+    || control.dataset.imageUpload
+    || control.dataset.imageAlt
+    || '';
+}
+
+function editorControlLabel(control) {
+  const fieldElement = control.closest('.field');
+  const label = fieldElement?.querySelector('label, .image-label');
+  return label?.textContent?.trim() || control.getAttribute('aria-label') || '';
+}
+
+function editorCardTitle(control) {
+  return control.closest('.form-card')?.querySelector('.form-card-head h3')?.textContent?.trim()
+    || TAB_COPY[state.tab]?.[1]
+    || '当前内容';
+}
+
+function updatePreviewLocation() {
+  const focus = state.previewFocus || defaultPreviewFocus();
+  elements.previewLocationTitle.textContent = focus.title;
+  elements.previewLocationHint.textContent = focus.hint;
+  elements.previewLocation.dataset.tab = state.tab;
+}
+
+function scrollPreviewToTarget(target) {
+  const stageRect = elements.previewStage.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const top = elements.previewStage.scrollTop + targetRect.top - stageRect.top - 34;
+  elements.previewStage.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
+function applyPreviewFocus(options = {}) {
+  updatePreviewLocation();
+  elements.journeyPreview.querySelectorAll('.is-preview-focus').forEach((target) => target.classList.remove('is-preview-focus'));
+  elements.journeyPreview.querySelectorAll('.preview-focus-tag').forEach((tag) => tag.remove());
+  const focus = state.previewFocus || defaultPreviewFocus();
+  const target = elements.journeyPreview.querySelector(`[data-preview-anchor="${CSS.escape(focus.anchor)}"]`)
+    || elements.journeyPreview.querySelector('[data-preview-anchor]');
+  if (!target) return;
+  target.classList.add('is-preview-focus');
+  const tag = document.createElement('span');
+  tag.className = 'preview-focus-tag';
+  tag.textContent = '正在编辑这里';
+  target.append(tag);
+  if (options.scroll) requestAnimationFrame(() => scrollPreviewToTarget(target));
+}
+
+function focusPreviewForControl(control) {
+  const path = editorControlPath(control);
+  if (!path) return;
+  const slide = path.match(/^hero\.slides\.(\d+)/);
+  if (state.tab === 'home' && slide) state.homepagePreviewSlide = Number(slide[1]);
+  const fieldLabel = editorControlLabel(control);
+  const cardTitle = editorCardTitle(control);
+  const resourceLabel = state.tab === 'home' ? '官网首页' : currentResourceMeta().shortLabel;
+  const hiddenFromBody = path.startsWith('seo.');
+  state.previewFocus = {
+    tab: state.tab,
+    resourceId: state.resourceId,
+    anchor: previewAnchorForPath(path),
+    title: `${resourceLabel} · ${cardTitle}`,
+    hint: hiddenFromBody
+      ? `当前字段：${fieldLabel || '搜索与分享信息'}。此内容不会显示在页面正文中，右侧以行程首屏确认页面归属。`
+      : `当前字段：${fieldLabel || cardTitle}。右侧已经定位并高亮它在页面中的对应位置。`,
+  };
+  if (state.tab === 'home' && slide) renderPreview();
+  applyPreviewFocus({ scroll: true });
 }
 
 function localDraftKey(resourceId = state.resourceId) {
@@ -443,6 +663,7 @@ function upsertJourneyListFromContent(content, extra = {}) {
   state.journeys.sort((left, right) => String(left.regionCode || '').localeCompare(String(right.regionCode || ''))
     || Number(left.order || 0) - Number(right.order || 0));
   registerJourneyResource(item, content);
+  updateSidebarContext();
   return item;
 }
 
@@ -695,6 +916,7 @@ function renderEditor() {
   elements.editorCanvas.innerHTML = renderers[state.tab]();
   bindEditorEvents();
   applyRoleVisibility();
+  updateSidebarContext();
 }
 
 function bindEditorEvents() {
@@ -711,6 +933,7 @@ function bindEditorEvents() {
 
   elements.editorCanvas.querySelectorAll('[data-season-select]').forEach((button) => {
     button.addEventListener('click', () => {
+      focusPreviewForControl(button);
       setPath('management.season', button.dataset.seasonSelect);
       synchronizeContent('management.season');
       markDirty();
@@ -749,6 +972,7 @@ function bindEditorEvents() {
   elements.editorCanvas.querySelectorAll('[data-select-day]').forEach((button) => {
     button.addEventListener('click', () => {
       state.selectedDay = Number(button.dataset.selectDay);
+      resetPreviewFocus('days');
       renderEditor();
       schedulePreview();
     });
@@ -779,6 +1003,7 @@ function bindEditorEvents() {
         state.selectedDay = Math.min(state.selectedDay, state.content.days.length - 1);
       }
       if (!changed) return showToast(state.content.days.length >= 30 ? '最多支持30天行程' : '至少保留1天', 'error');
+      resetPreviewFocus('days');
       markDirty();
       renderEditor();
       schedulePreview();
@@ -820,12 +1045,14 @@ function markResourceDirty(resourceId) {
     updateSaveState();
     schedulePreview();
   }
+  updateSidebarContext();
 }
 
 function updateSaveState(message) {
   elements.saveState.classList.toggle('dirty', state.dirty && !state.saving);
   elements.saveState.classList.toggle('saving', state.saving);
   elements.saveState.lastChild.textContent = message || (state.saving ? '正在保存…' : state.dirty ? '有未保存修改' : '内容已同步');
+  updateSidebarContext();
 }
 
 function saveLocalDraft(resourceId = state.resourceId) {
@@ -1050,28 +1277,29 @@ function previewMetric(eyebrow, label, metric) {
 }
 
 function renderHomepagePreview(data) {
-  const heroImage = currentImageUrl('hero.slides.0.image', data.hero.slides[0]?.image);
-  return `<section class="preview-home-hero"${heroImage ? ` style="background-image:url('${escapeHtml(heroImage)}')"` : ''}>
+  const slideIndex = Math.max(0, Math.min(state.homepagePreviewSlide, data.hero.slides.length - 1));
+  const heroImage = currentImageUrl(`hero.slides.${slideIndex}.image`, data.hero.slides[slideIndex]?.image);
+  return `<section class="preview-home-hero" data-preview-anchor="home-hero"${heroImage ? ` style="background-image:url('${escapeHtml(heroImage)}')"` : ''}>
       <div class="preview-home-hero-copy"><small>${escapeHtml(data.hero.eyebrow)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${withBreaks(data.hero.copy)}</p><div><span>${escapeHtml(data.hero.primaryLabel)}</span><b>${escapeHtml(data.hero.secondaryLabel)} ↓</b></div></div>
       <em>${escapeHtml(data.hero.credit)}</em>
     </section>
     <div class="preview-home-content">
-      <section class="preview-home-intro">
+      <section class="preview-home-intro" data-preview-anchor="home-intro">
         <div><small>${escapeHtml(data.intro.eyebrow)}</small><h3>${withBreaks(data.intro.title)}</h3></div>
         <div><strong>${withBreaks(data.intro.lead)}</strong><p>${withBreaks(data.intro.copy)}</p></div>
       </section>
-      <section class="preview-home-selection">
+      <section class="preview-home-selection" data-preview-anchor="home-selection">
         ${previewSectionTitle(data.selection.eyebrow, data.selection.title, data.selection.copy)}
         <div class="preview-home-selection-list">${data.selection.items.map((item, index) => {
           const image = currentImageUrl(`selection.items.${index}.image`, item.image);
-          return `<article${index === 0 ? ' class="active"' : ''}>${image ? `<img src="${escapeHtml(image)}" alt="" />` : ''}<div><small>${escapeHtml(item.placeLatin)} · ${escapeHtml(item.placeCn)}</small><span>${escapeHtml(item.kicker)}</span><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
+          return `<article data-preview-anchor="home-selection-${index}"${index === 0 ? ' class="active"' : ''}>${image ? `<img src="${escapeHtml(image)}" alt="" />` : ''}<div><small>${escapeHtml(item.placeLatin)} · ${escapeHtml(item.placeCn)}</small><span>${escapeHtml(item.kicker)}</span><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
         }).join('')}</div>
       </section>
-      <section class="preview-home-ways">
+      <section class="preview-home-ways" data-preview-anchor="home-ways">
         ${previewSectionTitle(data.ways.eyebrow, data.ways.title, data.ways.copy)}
         <div class="preview-home-way-grid">${data.ways.items.map((item, index) => {
           const image = currentImageUrl(`ways.items.${index}.image`, item.image);
-          return `<article${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.kicker)}</small><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
+          return `<article data-preview-anchor="home-way-${index}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.kicker)}</small><h4>${escapeHtml(item.title)}</h4><p>${withBreaks(item.copy)}</p><b>${escapeHtml(item.ctaLabel)} →</b></div></article>`;
         }).join('')}</div>
       </section>
     </div>`;
@@ -1082,7 +1310,7 @@ function renderJourneysPreview() {
   const visible = items.filter((item) => item.visibility !== 'hidden');
   const drafts = items.filter((item) => item.hasDraft || state.resources[item.id]?.dirty);
   const regions = new Set(items.map((item) => item.regionId || item.regionCode).filter(Boolean));
-  return `<header class="preview-system-head">
+  return `<header class="preview-system-head" data-preview-anchor="journey-library">
       <span class="preview-system-badge">内部行程目录</span>
       <small>JOURNEY LIBRARY</small><h2>${items.length}个行程 · ${regions.size}个地区</h2><p>这里汇总后台行程状态，不会作为官网页面直接展示。</p>
     </header>
@@ -1110,15 +1338,17 @@ function renderOverviewPreview(data) {
     ['REFERENCE PRICE', data.booking.price],
     ['TRAVEL STYLE', data.booking.travelStyle],
   ];
-  return `<section class="preview-hero"${hero ? ` style="background-image:url('${escapeHtml(hero)}')"` : ''}>
+  return `<section class="preview-hero" data-preview-anchor="journey-hero"${hero ? ` style="background-image:url('${escapeHtml(hero)}')"` : ''}>
       <div class="preview-hero-content"><small>${escapeHtml(data.hero.kicker)}</small><h2>${withBreaks(data.hero.title)}</h2><p>${escapeHtml(data.hero.copy)}</p><div class="preview-tags">${(data.hero.tags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div></div>
     </section>
     <div class="preview-content">
-      ${previewSectionTitle('JOURNEY OVERVIEW', data.overview.title, data.overview.copy)}
-      <div class="preview-route">${escapeHtml(data.overview.route)}</div>
-      <div class="preview-facts">${facts.map((fact) => `<div><small>${escapeHtml(fact.label)}</small><strong>${escapeHtml(fact.value)}</strong></div>`).join('')}</div>
-      <section class="preview-map-card"><small>ROUTE MAP · ${escapeHtml(data.map.mode === 'summary' ? '路线摘要' : '地图图片')}</small><h4>${escapeHtml(data.map.title)}</h4><p>${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : `<div class="preview-route-days">${data.map.days.map((day) => `<span><small>DAY ${escapeHtml(day.number)}</small><b>${escapeHtml(day.title || '待填写')}</b><i>${escapeHtml(day.route || '待填写路线')}</i></span>`).join('')}</div>`}<span>${escapeHtml(data.map.caption)}</span></section>
-      <aside class="preview-booking">
+      <section class="preview-overview-block" data-preview-anchor="journey-overview">
+        ${previewSectionTitle('JOURNEY OVERVIEW', data.overview.title, data.overview.copy)}
+        <div class="preview-route">${escapeHtml(data.overview.route)}</div>
+        <div class="preview-facts">${facts.map((fact) => `<div><small>${escapeHtml(fact.label)}</small><strong>${escapeHtml(fact.value)}</strong></div>`).join('')}</div>
+      </section>
+      <section class="preview-map-card" data-preview-anchor="journey-map"><small>ROUTE MAP · ${escapeHtml(data.map.mode === 'summary' ? '路线摘要' : '地图图片')}</small><h4>${escapeHtml(data.map.title)}</h4><p>${escapeHtml(data.map.copy)}</p>${mapImage ? `<img src="${escapeHtml(mapImage)}" alt="${escapeHtml(data.map.alt)}" />` : `<div class="preview-route-days">${data.map.days.map((day) => `<span><small>DAY ${escapeHtml(day.number)}</small><b>${escapeHtml(day.title || '待填写')}</b><i>${escapeHtml(day.route || '待填写路线')}</i></span>`).join('')}</div>`}<span>${escapeHtml(data.map.caption)}</span></section>
+      <aside class="preview-booking" data-preview-anchor="journey-booking">
         <div><small>TRIP INFORMATION</small><h4>${withBreaks(data.booking.title || data.card.title)}</h4><p>${escapeHtml(data.hero.status)}</p></div>
         <dl>${bookingItems.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '待公布')}</dd></div>`).join('')}</dl>
       </aside>
@@ -1137,7 +1367,7 @@ function renderDaysPreview(data) {
   return `<div class="preview-content preview-content--day">
       ${previewSectionTitle('DAY BY DAY', `DAY ${day.number} · ${day.title}`, '右侧正在显示左侧当前选中的当天内容。')}
       <div class="preview-day-index" aria-label="当前预览天数">${data.days.map((item, index) => `<span class="${index === state.selectedDay ? 'active' : ''}">${escapeHtml(item.number)}</span>`).join('')}</div>
-      <article class="preview-day">
+      <article class="preview-day" data-preview-anchor="journey-day">
         <header class="preview-day-head"><small>DAY ${escapeHtml(day.number)}</small><h4>${escapeHtml(day.title)}</h4><span>${escapeHtml(day.route)}</span><div class="preview-stops">${day.stops.map((stop) => `<b>${escapeHtml(stop)}</b>`).join('')}</div></header>
         ${dayImage ? `<img src="${escapeHtml(dayImage)}" alt="" />` : ''}
         <div class="preview-day-body"><p>${escapeHtml(day.story)}</p><div class="preview-metrics">
@@ -1154,20 +1384,20 @@ function renderDaysPreview(data) {
 }
 
 function renderHighlightsPreview(data) {
-  return `<div class="preview-content preview-content--highlights">
+  return `<div class="preview-content preview-content--highlights" data-preview-anchor="highlights">
       ${previewSectionTitle('VISUAL STORY', data.highlights.title, data.highlights.copy)}
       <div class="preview-highlight-grid">${data.highlights.items.map((item, index) => {
         const image = currentImageUrl(`highlights.items.${index}.image`, item.image);
-        return `<article class="preview-highlight-card${image ? '' : ' empty'}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.eyebrow)}</small><h4>${escapeHtml(item.title)}</h4></div></article>`;
+        return `<article class="preview-highlight-card${image ? '' : ' empty'}" data-preview-anchor="highlight-${index}"${image ? ` style="background-image:url('${escapeHtml(image)}')"` : ''}><div><small>${escapeHtml(item.eyebrow)}</small><h4>${escapeHtml(item.title)}</h4></div></article>`;
       }).join('')}</div>
     </div>`;
 }
 
 function renderStaysPreview(data) {
-  return `<div class="preview-content preview-content--stays">
+  return `<div class="preview-content preview-content--stays" data-preview-anchor="stays">
       ${previewSectionTitle('STAYS & NOTES', data.stays.title, data.stays.copy)}
-      <div class="preview-stay-grid">${data.stays.groups.map((group) => `<article class="preview-stay-card"><small>${escapeHtml(group.eyebrow)}</small><h4>${escapeHtml(group.title)}</h4><ul>${group.hotels.map((hotel) => `<li>${escapeHtml(hotel)}</li>`).join('')}</ul><p>${escapeHtml(group.copy)}</p></article>`).join('')}</div>
-      <section class="preview-notes">
+      <div class="preview-stay-grid">${data.stays.groups.map((group, index) => `<article class="preview-stay-card" data-preview-anchor="stay-${index}"><small>${escapeHtml(group.eyebrow)}</small><h4>${escapeHtml(group.title)}</h4><ul>${group.hotels.map((hotel) => `<li>${escapeHtml(hotel)}</li>`).join('')}</ul><p>${escapeHtml(group.copy)}</p></article>`).join('')}</div>
+      <section class="preview-notes" data-preview-anchor="journey-notes">
         ${previewSectionTitle('TRAVEL NOTES', data.notes.title, data.notes.copy)}
         <div class="preview-note-grid">${data.notes.items.map((item) => `<article><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.copy)}</p></article>`).join('')}</div>
         <p class="preview-disclaimer">${escapeHtml(data.notes.photoDisclaimer)}</p>
@@ -1188,7 +1418,7 @@ function renderPublishPreview(data) {
   const contentStatus = isHomepage
     ? [`${data.selection.items.length}项飞鸟之选`, `${data.hero.slides.length}张封面 · ${data.ways.items.length}种出发方式`]
     : [`${data.days.length}天行程`, `${data.highlights.items.length}项亮点 · ${data.stays.groups.length}组住宿`];
-  return `<header class="preview-system-head">
+  return `<header class="preview-system-head" data-preview-anchor="publish-status">
       <span class="preview-system-badge ${state.dirty ? 'warning' : ''}">${state.dirty ? '有待处理修改' : '草稿状态正常'}</span>
       <small>PUBLISH CENTER</small><h2>${escapeHtml(meta.label)}发布检查</h2><p>这里是内部发布检查，不会作为官网页面展示给游客。</p>
     </header>
@@ -1198,8 +1428,8 @@ function renderPublishPreview(data) {
         <article><small>CONTENT</small><strong>${escapeHtml(contentStatus[0])}</strong><span>${escapeHtml(contentStatus[1])}</span></article>
         <article><small>VALIDATION</small><strong>${errors.length ? `${errors.length}项待完善` : '检查通过'}</strong><span>${errors.length ? '发布前需要处理' : '关键字段均已填写'}</span></article>
       </div>
-      <section class="preview-system-card"><small>PRE-PUBLISH CHECK</small><h3>发布检查</h3><ul class="preview-check-list">${checks}</ul></section>
-      <section class="preview-system-card"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || meta.defaultMessage)}</strong><span>${escapeHtml(latest.publishedByName || latest.publishedBy || '')} · ${escapeHtml(formatDate(latest.publishedAt))}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7))}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
+      <section class="preview-system-card" data-preview-anchor="publish-check"><small>PRE-PUBLISH CHECK</small><h3>发布检查</h3><ul class="preview-check-list">${checks}</ul></section>
+      <section class="preview-system-card" data-preview-anchor="publish-history"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || meta.defaultMessage)}</strong><span>${escapeHtml(latest.publishedByName || latest.publishedBy || '')} · ${escapeHtml(formatDate(latest.publishedAt))}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7))}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
     </div>`;
 }
 
@@ -1207,7 +1437,7 @@ function renderStaffPreview() {
   const staff = state.staff?.staff || (state.actor ? [state.actor] : []);
   const invites = (state.staff?.invites || []).filter((invite) => invite.active);
   const activeStaff = staff.filter((person) => person.active !== false);
-  return `<header class="preview-system-head preview-system-head--staff">
+  return `<header class="preview-system-head preview-system-head--staff" data-preview-anchor="staff-status">
       <span class="preview-system-badge">仅工作人员可见</span>
       <small>TEAM ACCESS</small><h2>账号与权限状态</h2><p>这里是内部权限概览，不会出现在飞鸟旅行官网。</p>
     </header>
@@ -1217,7 +1447,7 @@ function renderStaffPreview() {
         <article><small>PENDING</small><strong>${invites.length}人</strong><span>等待首次邮箱登录</span></article>
         <article><small>YOUR ROLE</small><strong>${state.actor?.role === 'admin' ? '管理员' : '编辑'}</strong><span>${escapeHtml(state.actor?.name || state.actor?.email || '当前账号')}</span></article>
       </div>
-      <section class="preview-system-card"><small>ACTIVE TEAM</small><h3>已加入人员</h3><div class="preview-team-list">${activeStaff.length ? activeStaff.map((person) => `<div><span><strong>${escapeHtml(person.name || person.email)}</strong><small>${escapeHtml(person.email || '')}</small></span><b>${person.role === 'admin' ? '管理员' : '编辑'}</b></div>`).join('') : '<p class="preview-empty">暂无人员记录。</p>'}</div></section>
+      <section class="preview-system-card" data-preview-anchor="staff-team"><small>ACTIVE TEAM</small><h3>已加入人员</h3><div class="preview-team-list">${activeStaff.length ? activeStaff.map((person) => `<div><span><strong>${escapeHtml(person.name || person.email)}</strong><small>${escapeHtml(person.email || '')}</small></span><b>${person.role === 'admin' ? '管理员' : '编辑'}</b></div>`).join('') : '<p class="preview-empty">暂无人员记录。</p>'}</div></section>
       <section class="preview-system-card"><small>PENDING INVITES</small><h3>待加入邮箱</h3><div class="preview-team-list">${invites.length ? invites.map((invite) => `<div><span><strong>${escapeHtml(invite.email)}</strong><small>${escapeHtml(formatDate(invite.createdAt))}</small></span><b>${invite.role === 'admin' ? '管理员' : '编辑'}</b></div>`).join('') : '<p class="preview-empty">当前没有待加入邀请。</p>'}</div></section>
     </div>`;
 }
@@ -1234,12 +1464,18 @@ const previewRenderers = {
 };
 
 function renderPreview() {
+  if (!state.previewFocus
+    || state.previewFocus.tab !== state.tab
+    || state.previewFocus.resourceId !== state.resourceId) {
+    resetPreviewFocus();
+  }
   const [eyebrow, title] = PREVIEW_COPY[state.tab];
   elements.previewEyebrow.textContent = eyebrow;
   elements.previewTitle.textContent = title;
   const season = isJourneyResource() ? state.content?.management?.season || 'all' : 'all';
   elements.journeyPreview.className = `journey-preview preview-${state.tab} preview-season-${season}${state.device === 'mobile' ? ' mobile' : ''}`;
   elements.journeyPreview.innerHTML = `<div class="preview-browser"><i></i><i></i><i></i></div>${previewRenderers[state.tab](state.content)}`;
+  applyPreviewFocus();
 }
 
 async function loadHistory() {
@@ -1267,6 +1503,7 @@ async function loadJourneys(options = {}) {
     item.id === initialJourney.id ? initialJourney : null,
   ));
   state.journeysLoaded = true;
+  updateSidebarContext();
 }
 
 async function loadResource(resourceId, options = {}) {
@@ -1298,6 +1535,7 @@ async function loadResource(resourceId, options = {}) {
     registerJourneyResource({ id: resourceId, title: resource.content.card?.title }, resource.content);
     upsertJourneyListFromContent(resource.content, { hasDraft: Boolean(result.draftInfo) });
   }
+  updateSidebarContext();
 }
 
 async function loadStaff() {
@@ -1321,20 +1559,23 @@ async function selectTab(tab) {
       showToast(`行程目录读取失败：${error.message}`, 'error');
     }
   }
-  const journeyTabs = ['overview', 'days', 'highlights', 'stays'];
+  const journeyTabs = ['overview', 'days', 'highlights', 'stays', 'publish'];
   let nextResourceId = state.resourceId;
   if (tab === 'home') nextResourceId = 'homepage';
-  else if (journeyTabs.includes(tab) && !isJourneyResource(nextResourceId)) {
-    nextResourceId = state.journeys[0]?.id || 'kanto-6d';
+  else if (journeyTabs.includes(tab)) {
+    nextResourceId = isJourneyResource(nextResourceId) ? nextResourceId : currentJourneyId();
+    state.activeJourneyId = nextResourceId;
   }
   state.tab = tab;
   state.resourceId = nextResourceId;
+  resetPreviewFocus(tab);
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
   const [eyebrow, baseTitle] = TAB_COPY[tab];
   elements.sectionEyebrow.textContent = eyebrow;
   elements.sectionTitle.textContent = journeyTabs.includes(tab) ? `${baseTitle} · ${currentResourceMeta().shortLabel}` : baseTitle;
   elements.cmsApp.classList.remove('sidebar-open');
   elements.mobileMenu.setAttribute('aria-expanded', 'false');
+  updateSidebarContext();
   if (!state.resources[nextResourceId]?.loaded) {
     elements.editorCanvas.innerHTML = `<div class="editor-loading"><span></span><p>正在读取${escapeHtml(RESOURCE_META[nextResourceId].label)}最新内容…</p></div>`;
     elements.journeyPreview.innerHTML = '';
@@ -1362,8 +1603,10 @@ async function selectJourney(resourceId) {
   const item = state.journeys.find((journey) => journey.id === resourceId);
   if (!item && !state.resources[resourceId]) return showToast('没有找到这个行程', 'error');
   if (!state.resources[resourceId]) registerJourneyResource(item);
+  state.activeJourneyId = resourceId;
   state.resourceId = resourceId;
   state.selectedDay = 0;
+  updateSidebarContext();
   await selectTab('overview');
 }
 
@@ -1797,12 +2040,20 @@ async function login(event) {
 }
 
 document.querySelectorAll('.nav-item[data-tab]').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
-document.querySelector('[data-action="new-journey"]')?.addEventListener('click', () => openJourneyModal());
+document.querySelector('[data-action="new-journey"]')?.addEventListener('click', () => {
+  elements.cmsApp.classList.remove('sidebar-open');
+  elements.mobileMenu.setAttribute('aria-expanded', 'false');
+  openJourneyModal();
+});
 document.querySelectorAll('[data-device]').forEach((button) => button.addEventListener('click', () => {
   state.device = button.dataset.device;
   document.querySelectorAll('[data-device]').forEach((item) => item.classList.toggle('active', item === button));
   renderPreview();
 }));
+elements.editorCanvas.addEventListener('focusin', (event) => {
+  const control = event.target.closest('[data-path], [data-array-path], [data-image-upload], [data-image-alt], [data-season-select]');
+  if (control && elements.editorCanvas.contains(control)) focusPreviewForControl(control);
+});
 
 elements.sendCodeButton.addEventListener('click', sendCode);
 elements.loginForm.addEventListener('submit', login);
@@ -1816,6 +2067,11 @@ elements.signOutButton.addEventListener('click', async () => {
 elements.mobileMenu.addEventListener('click', () => {
   const open = elements.cmsApp.classList.toggle('sidebar-open');
   elements.mobileMenu.setAttribute('aria-expanded', String(open));
+});
+elements.sidebarClose.addEventListener('click', () => {
+  elements.cmsApp.classList.remove('sidebar-open');
+  elements.mobileMenu.setAttribute('aria-expanded', 'false');
+  elements.mobileMenu.focus();
 });
 elements.cmsApp.addEventListener('click', (event) => {
   if (event.target !== elements.cmsApp || !elements.cmsApp.classList.contains('sidebar-open')) return;

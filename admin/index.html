@@ -6,9 +6,9 @@
     <meta name="robots" content="noindex,nofollow,noarchive">
     <meta name="theme-color" content="#f6f3ee">
     <title>飞鸟旅行后台</title>
-    <script type="module" crossorigin src="./assets/index-DMEqPNLq.js"></script>
+    <script type="module" crossorigin src="./assets/index-BHvH1xIL.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/cloudbase-C183mGQ9.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-i3uVkc9w.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-uYr43vq9.css">
   </head>
   <body>
     <div class="login-shell" id="loginScreen">
@@ -49,24 +49,74 @@
 
     <div class="cms-shell" id="cmsApp" hidden>
       <aside class="cms-sidebar" id="cmsSidebar" aria-label="后台侧栏">
-        <div class="brand-lockup brand-lockup--sidebar">
-          <span class="brand-mark">飛</span>
-          <span><strong>飞鸟旅行</strong><small>CONTENT STUDIO</small></span>
+        <div class="sidebar-brand-row">
+          <div class="brand-lockup brand-lockup--sidebar">
+            <span class="brand-mark">飛</span>
+            <span><strong>飞鸟旅行</strong><small>CONTENT STUDIO</small></span>
+          </div>
+          <button class="sidebar-close" id="sidebarClose" type="button" aria-label="关闭后台导航">×</button>
         </div>
         <nav class="cms-nav" aria-label="后台功能">
-          <button class="nav-item active" data-tab="home" type="button"><span>01</span>首页内容</button>
-          <button class="nav-item" data-tab="journeys" type="button"><span>02</span>全部行程</button>
-          <button class="nav-item nav-item--accent" data-action="new-journey" type="button"><span>＋</span>新增行程</button>
-          <small class="nav-section-label">当前行程编辑</small>
-          <button class="nav-item" data-tab="overview" type="button"><span>03</span>产品概览</button>
-          <button class="nav-item" data-tab="days" type="button"><span>04</span>每日行程</button>
-          <button class="nav-item" data-tab="highlights" type="button"><span>05</span>亮点与图片</button>
-          <button class="nav-item" data-tab="stays" type="button"><span>06</span>酒店与说明</button>
-          <button class="nav-item" data-tab="publish" type="button"><span>07</span>发布管理</button>
-          <button class="nav-item admin-only" data-tab="staff" type="button"><span>08</span>工作人员</button>
+          <section class="nav-group" aria-labelledby="contentNavLabel">
+            <p class="nav-group-label" id="contentNavLabel">内容管理</p>
+            <button class="nav-item active" data-tab="home" type="button">
+              <span class="nav-item-mark" aria-hidden="true">首</span>
+              <span class="nav-item-copy"><strong>首页内容</strong><small>封面、品牌与首页栏目</small></span>
+            </button>
+            <button class="nav-item" data-tab="journeys" type="button">
+              <span class="nav-item-mark" aria-hidden="true">行</span>
+              <span class="nav-item-copy"><strong>行程管理</strong><small>查看、筛选与复制行程</small></span>
+            </button>
+            <button class="nav-create-button" data-action="new-journey" type="button">
+              <span aria-hidden="true">＋</span>
+              <span><strong>新增行程</strong><small>从现有模板开始制作</small></span>
+            </button>
+          </section>
+
+          <section class="nav-group nav-group--journey" aria-labelledby="journeyNavLabel">
+            <p class="nav-group-label" id="journeyNavLabel">当前行程</p>
+            <div class="current-journey-card" id="currentJourneyCard" role="status" aria-live="polite">
+              <div class="current-journey-head">
+                <span>正在编辑</span>
+                <span class="current-journey-status" id="currentJourneyStatus">官网展示</span>
+              </div>
+              <strong id="currentJourneyName">关东山海6日</strong>
+              <small id="currentJourneyMeta">AS-KANTO-06 · 四季通用</small>
+            </div>
+            <div class="journey-step-list" id="journeyStepList">
+              <button class="nav-item nav-item--step" data-tab="overview" type="button">
+                <span class="nav-step">01</span>
+                <span class="nav-item-copy"><strong>产品概览</strong><small>基础信息、首屏与地图</small></span>
+              </button>
+              <button class="nav-item nav-item--step" data-tab="days" type="button">
+                <span class="nav-step">02</span>
+                <span class="nav-item-copy"><strong>每日行程</strong><small>路线、餐食与住宿</small></span>
+              </button>
+              <button class="nav-item nav-item--step" data-tab="highlights" type="button">
+                <span class="nav-step">03</span>
+                <span class="nav-item-copy"><strong>亮点与图片</strong><small>旅行视觉故事</small></span>
+              </button>
+              <button class="nav-item nav-item--step" data-tab="stays" type="button">
+                <span class="nav-step">04</span>
+                <span class="nav-item-copy"><strong>酒店与说明</strong><small>甄选住宿与注意事项</small></span>
+              </button>
+              <button class="nav-item nav-item--step" data-tab="publish" type="button">
+                <span class="nav-step">05</span>
+                <span class="nav-item-copy"><strong>预览与发布</strong><small>检查草稿并更新官网</small></span>
+              </button>
+            </div>
+          </section>
+
+          <section class="nav-group nav-group--system admin-only" aria-labelledby="systemNavLabel">
+            <p class="nav-group-label" id="systemNavLabel">后台设置</p>
+            <button class="nav-item admin-only" data-tab="staff" type="button">
+              <span class="nav-item-mark" aria-hidden="true">人</span>
+              <span class="nav-item-copy"><strong>工作人员</strong><small>账号、邀请与权限</small></span>
+            </button>
+          </section>
         </nav>
         <div class="sidebar-foot">
-          <small class="admin-version">V33 · 通用行程工作台</small>
+          <small class="admin-version">V34 · 清晰导航与定位预览</small>
           <a href="https://z2816372267-dev.github.io/japan-signature-journeys/" target="_blank" rel="noopener">打开官网 ↗</a>
           <button id="signOutButton" type="button">退出登录</button>
         </div>
@@ -101,6 +151,13 @@
                 <button class="active" data-device="desktop" type="button" aria-label="桌面预览">桌面</button>
                 <button data-device="mobile" type="button" aria-label="手机预览">手机</button>
               </div>
+            </div>
+            <div class="preview-location" id="previewLocation" role="status" aria-live="polite">
+              <span class="preview-location-badge"><i></i>正在编辑</span>
+              <span class="preview-location-copy">
+                <strong id="previewLocationTitle">官网首页 · 首页封面</strong>
+                <small id="previewLocationHint">右侧已定位到官网首页首屏；选择字段后会继续定位到对应区块。</small>
+              </span>
             </div>
             <div class="preview-stage" id="previewStage">
               <div class="journey-preview" id="journeyPreview"></div>
