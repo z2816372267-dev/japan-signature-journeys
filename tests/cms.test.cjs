@@ -82,6 +82,15 @@ test('官网行程数据卡与后台预览保持两列并在手机端切换单�
   assert.match(journeyStyles, /@media \(max-width:\s*760px\)[\s\S]*?\.metric-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
 });
 
+test('官网地图保持原始比例且桌面标题采用规整均衡换行', () => {
+  const journeyStyles = fs.readFileSync(path.join(root, 'journeys', 'journey.css'), 'utf8');
+  assert.match(journeyStyles, /\.map-media picture,\s*\.map-media img\s*\{[^}]*height:\s*auto/);
+  assert.match(journeyStyles, /\.section-heading\s*\{[^}]*grid-template-columns:\s*minmax\(300px,\s*\.9fr\)\s+minmax\(0,\s*1fr\)/);
+  assert.match(journeyStyles, /\.section-heading\s*\{[^}]*max-width:\s*1040px/);
+  assert.match(journeyStyles, /\.section-heading h2\s*\{[^}]*font-size:\s*clamp\(31px,\s*3\.65vw,\s*44px\)[^}]*text-wrap:\s*balance/);
+  assert.match(journeyStyles, /@media \(max-width:\s*760px\)[\s\S]*?\.section-heading\s*\{[\s\S]*?display:\s*block/);
+});
+
 test('后台右侧内容跟随七个左侧栏目切换', () => {
   const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
   const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
