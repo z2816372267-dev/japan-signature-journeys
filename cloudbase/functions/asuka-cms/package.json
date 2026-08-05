@@ -1,6 +1,6 @@
 {
   "name": "asuka-cms-function",
-  "version": "33.0.0",
+  "version": "34.2.0",
   "private": true,
   "main": "index.js",
   "engines": {

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
+const { renderJourneyPage, renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
 const {
   migrateAirportMetrics,
   stripInternal,
@@ -29,17 +29,17 @@ test('官网首页内容通过发布校验并固定3张封面、6项精选和3�
   assert.equal(homepage.ways.items.length, 3);
 });
 
-test('静态生成结果幂等并保留三个CMS区块', () => {
+test('静态生成结果幂等并保留通用行程目录', () => {
   const once = renderSite(html, data);
   const twice = renderSite(once, data);
   assert.equal(twice, once);
-  assert.equal((once.match(/ASUKA_CMS:KANTO_CARD:START/g) || []).length, 1);
-  assert.equal((once.match(/ASUKA_CMS:KANTO_JOURNEY:START/g) || []).length, 1);
-  assert.equal((once.match(/ASUKA_CMS:KANTO_INQUIRY:START/g) || []).length, 1);
+  assert.equal((once.match(/ASUKA_CMS:JOURNEY_CATALOG:START/g) || []).length, 1);
+  assert.equal((once.match(/ASUKA_CMS:KANTO_JOURNEY:START/g) || []).length, 0);
+  assert.match(once, /href="journeys\/kanto-6d\/"/);
 });
 
 test('官网逐日使用后台当前的行车里程与预计驾驶时间', () => {
-  const rendered = renderSite(html, data);
+  const rendered = renderJourneyPage(data);
   for (const day of data.days) {
     for (const line of [...day.distance.value.split('\n'), ...day.duration.value.split('\n')]) {
       for (const part of line.split('：')) assert.ok(rendered.includes(part));
@@ -52,28 +52,26 @@ test('官网逐日使用后台当前的行车里程与预计驾驶时间', () =>
 });
 
 test('接送机双机场路线在官网与后台预览中逐行展示', () => {
-  const rendered = renderSite(html, data);
+  const rendered = renderJourneyPage(data);
   const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
   const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
-  assert.match(rendered, /metric-card--routes/);
-  assert.match(rendered, /metric-route-name">羽田机场 → 东京酒店/);
-  assert.match(rendered, /metric-route-value">约30—50分钟/);
-  assert.match(rendered, /metric-route-name">东京酒店 → 成田机场/);
+  const journeyStyles = fs.readFileSync(path.join(root, 'journeys', 'journey.css'), 'utf8');
+  assert.match(rendered, /class="metric-routes"/);
+  assert.match(rendered, /<i>羽田机场 → 东京酒店<\/i><b>约30—50分钟<\/b>/);
+  assert.match(rendered, /<i>东京酒店 → 成田机场<\/i><b>约60—90分钟<\/b>/);
   assert.doesNotMatch(rendered, /羽田约30—50分钟｜成田约60—90分钟/);
   assert.match(adminSource, /preview-metric-routes/);
   assert.match(adminSource, /多条路线时，每条路线占一行/);
   assert.match(adminStyles, /\.preview-metric-route > b[\s\S]*?white-space:\s*nowrap/);
-  assert.match(rendered, /v29\.1: keep airport transfer routes and values on clear independent lines/);
+  assert.match(journeyStyles, /\.metric-routes > span\s*\{[\s\S]*?grid-template-columns:\s*minmax\(100px,\s*1fr\)\s+auto/);
 });
 
 test('官网行程数据卡与后台预览保持两列并在手机端切换单列', () => {
-  const rendered = renderSite(html, data);
   const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  const journeyStyles = fs.readFileSync(path.join(root, 'journeys', 'journey.css'), 'utf8');
   assert.match(adminStyles, /\.preview-metrics\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(rendered, /v27: match the CMS preview's readable two-column journey data cards/);
-  assert.match(rendered, /\.itinerary \.day-metrics\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:10px/);
-  assert.match(rendered, /border-radius:7px;background:#e9e3d9/);
-  assert.match(rendered, /@media\(max-width:540px\)\{\.itinerary \.day-metrics\{grid-template-columns:1fr\}/);
+  assert.match(journeyStyles, /\.metric-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*1fr\)/);
+  assert.match(journeyStyles, /@media \(max-width:\s*760px\)[\s\S]*?\.metric-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
 });
 
 test('后台右侧内容跟随七个左侧栏目切换', () => {
@@ -107,7 +105,7 @@ test('首页四个CMS区块静态生成幂等并保护功能链接', () => {
   }
   assert.match(once, /<button class="primary hero-primary" onclick="openPanel\('heart'\)">/);
   assert.match(once, /href="#entry"/);
-  assert.match(once, /onclick="openKantoJourney\(\);return false"/);
+  assert.match(once, /href="journeys\/kanto-6d\/"/);
   assert.equal((once.match(/class="entry-card reveal"/g) || []).length, 3);
   assert.match(once, /onclick="openPanel\('custom'\)"/);
   assert.match(once, /onclick="openPanel\('themes'\)"/);
@@ -190,6 +188,47 @@ test('产品标题与地图逐日路线只维护一份并自动同步', () => {
   });
 });
 
+test('后台明确标出逐日动线来源并可跳转到指定日期编辑', () => {
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  assert.match(adminSource, /function routeSourcePanel\(\)/);
+  assert.match(adminSource, /AUTO SYNC · 每日行程/);
+  assert.match(adminSource, /data-edit-route-day/);
+  assert.match(adminSource, /await selectTab\('days'\)/);
+  assert.match(adminSource, /当天标题｜同步动线/);
+  assert.match(adminSource, /当天路线｜同步动线/);
+  assert.match(adminStyles, /\.route-source-days\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(adminStyles, /@media \(max-width: 520px\)[\s\S]*?\.route-source-days\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+});
+
+test('草稿冲突通过数据库专用接口恢复且保留本机副本', () => {
+  const functionSource = fs.readFileSync(path.join(root, 'cloudbase', 'functions', 'asuka-cms', 'index.js'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  assert.match(functionSource, /async function getDraft\(actor, event\)/);
+  assert.match(functionSource, /getDraft: \{ role: 'editor', handler: getDraft \}/);
+  assert.match(adminSource, /callCms\('getDraft', \{ resourceId \}\)/);
+  assert.match(adminSource, /conflictBackupKey/);
+  assert.match(adminSource, /storeConflictBackup\(resourceId\)/);
+  assert.match(adminSource, /data-restore-conflict-backup/);
+  assert.match(adminSource, /后台云函数仍是旧版本/);
+});
+
+test('发布中心强制先保存后发布并只在独立页面存在时开放链接', () => {
+  const functionSource = fs.readFileSync(path.join(root, 'cloudbase', 'functions', 'asuka-cms', 'index.js'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  assert.match(adminSource, /保存后台草稿/);
+  assert.match(adminSource, /检查并发布到官网/);
+  assert.match(adminSource, /if \(state\.dirty\) return showToast\('请先保存后台草稿/);
+  assert.match(adminSource, /elements\.saveButton\.disabled = state\.saving \|\| !state\.dirty/);
+  assert.match(adminSource, /elements\.quickPublishButton\.disabled = state\.saving \|\| state\.dirty/);
+  assert.match(adminSource, /resource\.sitePageReady = resourceId === 'homepage' \|\| result\.sitePageReady === true/);
+  assert.match(adminSource, /首次成功发布后，这里才会出现官网链接/);
+  assert.match(functionSource, /async function publishedPageExists\(resource\)/);
+  assert.match(functionSource, /sitePageReady/);
+  assert.match(adminStyles, /\.publish-step\s*\{[\s\S]*?grid-template-columns:\s*42px minmax\(0, 1fr\) auto/);
+});
+
 test('接送机日按羽田与成田分别显示车程和驾驶时间', () => {
   for (const day of [data.days[0], data.days[5]]) {
     assert.match(day.distance.value, /羽田/);
@@ -239,7 +278,7 @@ test('多人草稿与发布请求具有版本冲突和幂等保护', () => {
   assert.match(source, /CONTENT_RESOURCES/);
   assert.match(source, /resourceId: resource\.id/);
   assert.match(source, /content\/homepage\.json/);
-  assert.match(source, /renderSite\(currentIndex, journeyContent, homepageContent\)/);
+  assert.match(source, /renderSite\(currentIndex, nextCatalog, homepageContent\)/);
 });
 
 test('响应式图片请求控制在 CloudBase 事件上限以内', () => {
@@ -275,8 +314,8 @@ test('发布校验覆盖地图、亮点与住宿等完整结构', () => {
   assert.throws(() => validateJourney(missingMap), /行程地图注释/);
 
   const missingHighlight = structuredClone(data);
-  missingHighlight.highlights.items.pop();
-  assert.throws(() => validateJourney(missingHighlight), /亮点区必须保留4项内容/);
+  missingHighlight.highlights.items = [];
+  assert.throws(() => validateJourney(missingHighlight), /亮点区必须包含1—8项内容/);
 
   const missingStay = structuredClone(data);
   missingStay.stays.groups[0].hotels = [];
@@ -284,12 +323,14 @@ test('发布校验覆盖地图、亮点与住宿等完整结构', () => {
 });
 
 test('官网包含基础搜索信息与站点地图入口', () => {
+  const sitemap = fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8');
   assert.match(html, /<meta name="description"/);
   assert.match(html, /<link rel="canonical"/);
   assert.match(html, /<meta property="og:image"/);
   assert.ok(fs.existsSync(path.join(root, 'favicon.svg')));
   assert.ok(fs.existsSync(path.join(root, 'robots.txt')));
   assert.ok(fs.existsSync(path.join(root, 'sitemap.xml')));
+  assert.match(sitemap, /journeys\/kanto-6d\//);
 });
 
 test('官网进入画面保持纵向品牌结构且不增加外部资源', () => {
@@ -368,13 +409,13 @@ test('封面行动区使用低干扰深色按钮并显示探索别样日本', ()
   assert.match(rendered, /2026-07-24-v32-homepage-cms/);
 });
 
-test('统一后台为首页与关东行程保存独立草稿和预览图片', () => {
+test('统一后台为首页与动态行程保存独立草稿和预览图片', () => {
   const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
   const adminHtml = fs.readFileSync(path.join(root, 'admin-src', 'index.html'), 'utf8');
-  assert.match(adminHtml, /data-tab="home"><span>01<\/span>首页内容/);
-  assert.match(adminHtml, /V32 · 首页统一管理/);
+  assert.match(adminHtml, /data-tab="home"/);
+  assert.match(adminHtml, /V34\.2 · 动线、草稿与发布修复/);
   assert.match(adminSource, /homepage: createResourceState\(initialHomepage\)/);
-  assert.match(adminSource, /'kanto-6d': createResourceState\(initialContent\)/);
+  assert.match(adminSource, /'kanto-6d': createResourceState\(initialJourney\)/);
   assert.match(adminSource, /`asuka-cms:\$\{resourceId\}:draft`/);
   assert.match(adminSource, /callCms\('getContent', \{ resourceId \}\)/);
   assert.match(adminSource, /callCms\('saveDraft', \{ resourceId, content: resource\.content/);

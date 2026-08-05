@@ -3,11 +3,11 @@
 环境 ID：`asuka-travel-admin-d6cef3d2ad7da`  
 地域：上海 `ap-shanghai`
 
-## V33 更新说明（已有后台必须执行）
+## V34.2 更新说明（已有后台必须执行）
 
-V33 沿用现有后台、现有账号和下面 6 个数据库集合，不需要新建“手机后台”、数据库集合或 CloudBase 环境。原 V32.1 同步方案不再使用。
+V34.2 沿用现有后台、现有账号和下面 6 个数据库集合，不需要新建“手机后台”、数据库集合或 CloudBase 环境。原 V32.1 同步方案不再使用。
 
-上传 V33 网站文件到 GitHub 后，还要重新部署一次 `asuka-cms` 云函数，才能启用通用行程创建、季节模板、动态行程目录和独立详情页发布。重新部署不会删除已有草稿或账号。
+上传 V34.2 网站文件到 GitHub 后，还要重新部署一次 `asuka-cms` 云函数。此版本新增“仅从数据库读取草稿”的安全恢复接口，用于修复尚未发布的新行程在草稿冲突时出现 `GitHub 返回错误：Not Found` 的问题。重新部署不会删除已有草稿或账号。
 
 部署完成后，请务必进入 CloudBase 控制台 → 云函数/托管 → `asuka-cms` → 函数配置，核对页面实际显示：
 
@@ -92,9 +92,11 @@ tcb fn deploy asuka-cms
 
 保存后通常需要数分钟生效。
 
-## 7. 部署后台静态文件
+## 7. 后台静态文件说明
 
-将构建后的 `admin/` 目录上传到 CloudBase 静态网站托管根目录。也可使用 CLI：
+当前正式后台使用 GitHub Pages 的 `/admin/` 地址。上传 V34.2 完整网站包到 GitHub 后，后台会随官网一起更新，不需要再开通 CloudBase 静态网站托管。
+
+只有在以后明确决定改用 CloudBase 分配的静态托管域名时，才需要将构建后的 `admin/` 目录部署到 CloudBase：
 
 ```bash
 tcb hosting deploy admin -e asuka-travel-admin-d6cef3d2ad7da

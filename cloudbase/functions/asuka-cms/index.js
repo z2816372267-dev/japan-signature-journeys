@@ -198,9 +198,47 @@ async function readPublishedContent(resource) {
   return resource.validate(JSON.parse(text));
 }
 
-async function getContent(actor, event) {
+async function publishedPageExists(resource) {
+  if (resource.id === 'homepage') return true;
+  try {
+    await github().getTextFile(`journeys/${resource.id}/index.html`);
+    return true;
+  } catch (error) {
+    if (error.status !== 404) console.warn('published-page-check-failed', resource.id, error.message);
+    return false;
+  }
+}
+
+function draftInfo(draft) {
+  if (!draft) return null;
+  return {
+    updatedAt: draft.updatedAt,
+    updatedBy: draft.updatedBy,
+    updatedByName: draft.updatedByName,
+    revision: Number(draft.revision) || 0,
+  };
+}
+
+async function getDraft(actor, event) {
   const resource = resourceFromEvent(event);
   const draft = await readDoc(COLLECTIONS.drafts, resource.id);
+  if (!draft?.content) {
+    throw cmsError('DRAFT_NOT_FOUND', '服务器上还没有这项内容的草稿', 404);
+  }
+  return {
+    content: resource.validateDraft(structuredClone(draft.content)),
+    draftInfo: draftInfo(draft),
+    actor,
+    resourceId: resource.id,
+  };
+}
+
+async function getContent(actor, event) {
+  const resource = resourceFromEvent(event);
+  const [draft, sitePageReady] = await Promise.all([
+    readDoc(COLLECTIONS.drafts, resource.id),
+    publishedPageExists(resource),
+  ]);
   const draftContent = draft?.content ? resource.validateDraft(structuredClone(draft.content)) : null;
   let published = null;
   try {
@@ -211,16 +249,10 @@ async function getContent(actor, event) {
   return {
     content: draftContent || published,
     published,
-    draftInfo: draft
-      ? {
-          updatedAt: draft.updatedAt,
-          updatedBy: draft.updatedBy,
-          updatedByName: draft.updatedByName,
-          revision: Number(draft.revision) || 0,
-        }
-      : null,
+    draftInfo: draftInfo(draft),
     actor,
     resourceId: resource.id,
+    sitePageReady,
   };
 }
 
@@ -235,7 +267,7 @@ async function saveDraft(actor, event) {
     const editor = current?.updatedByName || current?.updatedBy || '另一位工作人员';
     throw cmsError(
       'DRAFT_CONFLICT',
-      `${editor} 已保存了较新的内容。为避免覆盖，系统没有保存你当前的修改，请重新读取最新草稿。`,
+      `服务器上的草稿已由 ${editor} 更新（也可能来自当前账号的另一页面）。为避免覆盖，系统没有保存你当前的修改。`,
       409,
     );
   }
@@ -526,7 +558,7 @@ ${entries.map((url) => `  <url><loc>${url}</loc></url>`).join('\n')}
 `;
 }
 
-async function publishV33(actor, event) {
+async function publishV34(actor, event) {
   const resource = resourceFromEvent(event);
   const currentDraft = await readDoc(COLLECTIONS.drafts, resource.id);
   const currentRevision = Number(currentDraft?.revision) || 0;
@@ -579,7 +611,7 @@ async function publishV33(actor, event) {
     ]);
 
     if (!catalogText) {
-      throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中缺少 V33 行程目录，请先上传 V33 官网上传包', 409);
+      throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中缺少行程目录，请先上传 V34.2 完整网站包', 409);
     }
     let catalog;
     let homepageContent;
@@ -589,7 +621,7 @@ async function publishV33(actor, event) {
         ? cleanContent
         : stripInternal(validateHomepage(JSON.parse(homepageText)));
     } catch {
-      throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中的 V33 首页或行程目录无效，请先上传 V33 官网上传包', 409);
+      throw cmsError('PUBLISHED_CONTENT_MISSING', 'GitHub 中的首页或行程目录无效，请先上传 V34.2 完整网站包', 409);
     }
 
     let nextCatalog = catalog;
@@ -793,9 +825,10 @@ const ACTIONS = {
   listJourneys: { role: 'editor', handler: async () => ({ items: await listJourneys() }) },
   createJourney: { role: 'editor', handler: createJourney },
   getContent: { role: 'editor', handler: getContent },
+  getDraft: { role: 'editor', handler: getDraft },
   saveDraft: { role: 'editor', handler: saveDraft },
   stageAsset: { role: 'editor', handler: stageAsset },
-  publish: { role: 'admin', handler: publishV33 },
+  publish: { role: 'admin', handler: publishV34 },
   history: { role: 'editor', handler: async (actor, event) => ({ items: await history(event.resourceId || 'homepage') }) },
   listStaff: { role: 'admin', handler: async () => listStaff() },
   inviteStaff: { role: 'admin', handler: inviteStaff },

@@ -2,12 +2,13 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
+const { renderJourneyPage, renderSite } = require('../cloudbase/functions/asuka-cms/lib/render-journey.cjs');
 const { validateHomepage, validateJourney } = require('../cloudbase/functions/asuka-cms/lib/validation');
 
 const root = path.resolve(__dirname, '..');
 const indexPath = path.join(root, 'index.html');
 const contentPath = path.join(root, 'content', 'journeys', 'kanto-6d.json');
+const catalogPath = path.join(root, 'content', 'journeys', 'index.json');
 const homepagePath = path.join(root, 'content', 'homepage.json');
 const errors = [];
 
@@ -30,6 +31,7 @@ function checkImage(image, label) {
 }
 
 const data = JSON.parse(fs.readFileSync(contentPath, 'utf8'));
+const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
 const homepage = JSON.parse(fs.readFileSync(homepagePath, 'utf8'));
 try {
   validateJourney(data);
@@ -41,7 +43,10 @@ try {
 } catch (error) {
   errors.push(`首页发布校验失败：${error.message}`);
 }
-if (data.schemaVersion !== 1) errors.push('schemaVersion 必须为 1');
+if (data.schemaVersion !== 2) errors.push('行程 schemaVersion 必须为 2');
+if (catalog.schemaVersion !== 1 || !catalog.journeys?.some((item) => item.id === data.id)) {
+  errors.push('行程目录缺少当前关东行程');
+}
 required(data.id, 'id', 64);
 required(data.productCode, 'productCode', 32);
 required(data.card?.title, 'card.title', 80);
@@ -73,9 +78,14 @@ homepage.selection?.items?.forEach((item, index) => checkImage(item.image, `home
 homepage.ways?.items?.forEach((item, index) => checkImage(item.image, `homepage.ways.items[${index}].image`));
 
 try {
-  renderSite(fs.readFileSync(indexPath, 'utf8'), data, homepage);
+  renderSite(fs.readFileSync(indexPath, 'utf8'), catalog, homepage);
+  renderJourneyPage(data);
 } catch (error) {
   errors.push(`静态生成失败：${error.message}`);
+}
+
+for (const asset of ['journeys/journey.css', 'journeys/journey.js']) {
+  if (!fs.existsSync(path.join(root, asset))) errors.push(`动态行程公共文件不存在：${asset}`);
 }
 
 if (errors.length) {

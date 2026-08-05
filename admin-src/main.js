@@ -52,9 +52,11 @@ function createResourceState(initial) {
     revision: 0,
     draftInfo: null,
     publishRequestId: null,
+    sitePageReady: Boolean(initial?.id),
     previewUrls: new Map(),
     history: [],
     localSaveTimer: null,
+    conflictBackup: null,
     loaded: false,
   };
 }
@@ -565,6 +567,10 @@ function localDraftKey(resourceId = state.resourceId) {
   return `asuka-cms:${resourceId}:draft`;
 }
 
+function conflictBackupKey(resourceId = state.resourceId) {
+  return `asuka-cms:${resourceId}:conflict-backup`;
+}
+
 function hasAnyDirtyResource() {
   return Object.values(state.resources).some((resource) => resource.dirty);
 }
@@ -853,6 +859,42 @@ function overviewFactEditor(index) {
   </div>`;
 }
 
+function routeSourcePanel() {
+  const days = Array.isArray(state.content.days) ? state.content.days : [];
+  const completeCount = days.filter((day) => day.title?.trim() && day.route?.trim()).length;
+  const firstIncomplete = days.findIndex((day) => !day.title?.trim() || !day.route?.trim());
+  const nextIndex = firstIncomplete >= 0 ? firstIncomplete : 0;
+  const completionLabel = completeCount === days.length ? '逐日动线已全部填写' : `还需填写 ${days.length - completeCount} 天`;
+  return `<section class="route-source-panel full" data-preview-path="map.days" aria-label="逐日动线同步状态">
+    <div class="route-source-head">
+      <div>
+        <small>AUTO SYNC · 每日行程</small>
+        <strong>右侧 DAY 01—${escapeHtml(days.at(-1)?.number || '01')} 不是在这里单独填写</strong>
+        <span>每一格都自动读取“每日行程”中的当天标题和当天路线，修改一处即可同步后台预览与官网。</span>
+      </div>
+      <button class="primary route-source-primary" data-edit-route-day="${nextIndex}" type="button">${firstIncomplete >= 0 ? `去填写 DAY ${escapeHtml(days[nextIndex]?.number || '01')}` : '检查每日行程'}</button>
+    </div>
+    <div class="route-source-progress" role="status">
+      <span><i style="--route-progress:${days.length ? Math.round((completeCount / days.length) * 100) : 0}%"></i></span>
+      <b>${completeCount}/${days.length} 天已完整</b>
+      <small>${escapeHtml(completionLabel)}</small>
+    </div>
+    <div class="route-source-days">
+      ${days.map((day, index) => {
+    const titleReady = Boolean(day.title?.trim());
+    const routeReady = Boolean(day.route?.trim());
+    const complete = titleReady && routeReady;
+    return `<button class="${complete ? 'is-complete' : 'is-incomplete'}" data-edit-route-day="${index}" data-preview-path="map.days.${index}.route" type="button">
+          <small>DAY ${escapeHtml(day.number)}</small>
+          <b>${escapeHtml(day.title?.trim() || '待填写当天标题')}</b>
+          <span>${escapeHtml(day.route?.trim() || '待填写当天路线')}</span>
+          <i>${complete ? '已同步' : `${titleReady ? '' : '缺标题'}${!titleReady && !routeReady ? ' · ' : ''}${routeReady ? '' : '缺路线'}`}</i>
+        </button>`;
+  }).join('')}
+    </div>
+  </section>`;
+}
+
 function renderOverviewEditor() {
   const meta = currentResourceMeta();
   const mapMode = state.content.map?.mode || 'summary';
@@ -893,7 +935,8 @@ function renderOverviewEditor() {
       ${field('概览说明', 'overview.copy', { max: 500, textarea: true, size: 'long' })}
       <div class="metric-grid full">${state.content.overview.facts.map((_, index) => overviewFactEditor(index)).join('')}</div>
     </div>`)}
-    ${formCard('行程地图', '逐日路线会自动跟随“每日行程”。一般行程选择“路线摘要”即可；已有专业地图或上传一张地图时可切换其他方式。', `<div class="form-grid">
+    ${formCard('行程地图与逐日动线', '右侧路线格只维护一份数据：来自“每日行程”的当天标题与当天路线。这里仅设置整个地图区的标题、说明和展示方式。', `<div class="form-grid">
+      ${routeSourcePanel()}
       ${selectField('地图展示方式', 'map.mode', [
     { value: 'summary', label: '路线摘要（推荐，无需地图图片）' },
     { value: 'image', label: '上传地图图片' },
@@ -938,6 +981,10 @@ function renderDaysEditor() {
   return `<div class="editor-section">
     ${demoBanner()}
     ${sectionIntro('DAY BY DAY', `每日行程 · 共${state.content.days.length}天`, '可新增、复制、移动或删除天数；系统会自动重排 DAY 编号，并同步官网路线摘要、晚数和行程时长。')}
+    <div class="day-sync-strip" data-preview-path="${path}.route">
+      <span><small>ROUTE SUMMARY</small><strong>这里就是右侧逐日动线的内容来源</strong></span>
+      <p>“当天标题”与“当天路线”会立即同步到产品概览中的 DAY ${escapeHtml(day.number)} 路线格，无需在两个地方重复填写。</p>
+    </div>
     <div class="day-tabs">${state.content.days.map((item, index) => `<button class="${index === state.selectedDay ? 'active' : ''}" data-select-day="${index}" type="button"><strong>DAY ${escapeHtml(item.number)}</strong><span>${escapeHtml((item.title || '待填写').slice(0, 8))}</span></button>`).join('')}<button class="day-tab-add" data-day-action="append" type="button" aria-label="在末尾新增一天">＋<span>新增</span></button></div>
     <div class="day-manage-bar">
       <div><strong>DAY ${escapeHtml(day.number)}</strong><span>${escapeHtml(day.title || '尚未填写标题')}</span></div>
@@ -949,9 +996,9 @@ function renderDaysEditor() {
         <button class="danger" data-day-action="remove" type="button"${state.content.days.length === 1 ? ' disabled' : ''}>删除</button>
       </div>
     </div>
-    ${formCard(`DAY ${day.number} · 基本内容`, '修改后右侧会立即显示当天预览。', `<div class="form-grid">
-      ${field('当天标题', `${path}.title`, { max: 80, full: false })}
-      ${field('当天路线', `${path}.route`, { max: 120, full: false })}
+    ${formCard(`DAY ${day.number} · 基本内容`, '修改后右侧会立即定位当天预览；标题和路线也会同步到产品概览的逐日动线。', `<div class="form-grid">
+      ${field('当天标题｜同步动线', `${path}.title`, { max: 80, full: false, help: `显示在右侧 DAY ${day.number} 的主标题。` })}
+      ${field('当天路线｜同步动线', `${path}.route`, { max: 120, full: false, help: '建议按实际先后顺序，用 → 分隔地点。' })}
       ${arrayEditor('停靠点／体验', `${path}.stops`, { max: 50, help: '建议3—5项，按实际游览顺序填写。' })}
       ${field('行程描述', `${path}.story`, { max: 1200, textarea: true, size: 'long' })}
       ${imageUploader('当天主图', `${path}.image`, day.image, '建议横图，至少1200像素宽；系统会自动压缩并生成手机端版本。')}
@@ -1008,18 +1055,52 @@ function renderStaysEditor() {
 function renderPublishEditor() {
   const meta = currentResourceMeta();
   const isHomepage = state.resourceId === 'homepage';
+  const resource = state.resources[state.resourceId];
   const liveUrl = isHomepage ? CMS_CONFIG.publicSiteUrl : `${CMS_CONFIG.publicSiteUrl}journeys/${encodeURIComponent(state.resourceId)}/`;
-  const dirtyText = state.dirty ? '当前有尚未保存或发布的修改' : '当前草稿与最近保存状态一致';
+  const hasLivePage = isHomepage || resource.sitePageReady === true;
+  const validationErrors = validateContentForPublish();
+  const draftStatus = state.dirty
+    ? '<span class="publish-step-status warning">尚未保存</span>'
+    : '<span class="publish-step-status complete">已完成 · 草稿已保存</span>';
+  const publishStatus = state.dirty
+    ? '<span class="publish-step-status waiting">等待第1步</span>'
+    : validationErrors.length
+      ? `<span class="publish-step-status warning">${validationErrors.length}项待完善</span>`
+      : '<span class="publish-step-status ready">可以发布</span>';
+  const draftAction = state.dirty
+    ? '<button class="primary" data-save-draft type="button">保存后台草稿</button>'
+    : '<span class="publish-step-done">无需重复保存</span>';
+  const publishAction = `<button class="primary admin-only" data-open-publish type="button"${state.dirty ? ' disabled' : ''}>${state.dirty ? '请先保存草稿' : '检查并发布到官网'}</button>`;
+  const liveAction = hasLivePage
+    ? `<a class="primary publish-live-link" href="${escapeHtml(liveUrl)}" target="_blank" rel="noopener">打开已发布页面 ↗</a>`
+    : '<span class="publish-live-pending">首次成功发布后，这里才会出现官网链接</span>';
   const history = state.history.length
-    ? state.history.map((item) => `<div class="history-item"><div><strong>${escapeHtml(item.message || meta.defaultMessage)}</strong><span>${escapeHtml(item.publishedByName || item.publishedBy || '')} · ${formatDate(item.publishedAt)}</span></div><a href="${escapeHtml(item.commitUrl)}" target="_blank" rel="noopener">${escapeHtml(String(item.commitSha || '').slice(0, 7))} ↗</a></div>`).join('')
+    ? state.history.map((item) => {
+      const detail = [item.publishedByName || item.publishedBy, formatDate(item.publishedAt)].filter(Boolean).join(' · ') || '后台发布记录';
+      const shortSha = String(item.commitSha || '').slice(0, 7);
+      const commitLink = item.commitUrl && shortSha
+        ? `<a href="${escapeHtml(item.commitUrl)}" target="_blank" rel="noopener">${escapeHtml(shortSha)} ↗</a>`
+        : '<span class="history-no-link">仅后台记录</span>';
+      return `<div class="history-item"><div><strong>${escapeHtml(item.message || meta.defaultMessage)}</strong><span>${escapeHtml(detail)}</span></div>${commitLink}</div>`;
+    }).join('')
     : '<p>还没有后台发布记录。</p>';
   return `<div class="editor-section">
     ${demoBanner()}
-    ${sectionIntro('PUBLISH CENTER', `发布管理 · ${meta.shortLabel}`, `当前管理的是“${meta.label}”。草稿仅在后台可见；点击发布后，系统会生成静态官网文件并提交到 GitHub，GitHub Pages 通常会在1—3分钟内更新。`)}
+    ${sectionIntro('PUBLISH CENTER', `保存与发布 · ${meta.shortLabel}`, `当前管理的是“${meta.label}”。请按第1步、第2步操作：保存草稿只写入后台；发布才会生成官网静态文件并提交到 GitHub。`)}
+    <div class="publish-flow">
+      <section class="publish-step">
+        <span class="publish-step-number">1</span>
+        <div class="publish-step-content"><small>BACKSTAGE DRAFT</small><h3>保存后台草稿</h3><p>保存你的编辑进度，游客看不到，也不会改动当前官网。</p>${draftStatus}</div>
+        <div class="publish-step-action">${draftAction}</div>
+      </section>
+      <section class="publish-step${state.dirty ? ' is-locked' : ''}">
+        <span class="publish-step-number">2</span>
+        <div class="publish-step-content"><small>LIVE WEBSITE</small><h3>发布到官网</h3><p>${isHomepage ? '生成并更新官网首页静态文件。' : '生成独立行程页，同时更新官网首页的行程目录。'}通常1—3分钟后生效。</p>${publishStatus}</div>
+        <div class="publish-step-action">${publishAction}</div>
+      </section>
+    </div>
     <div class="publish-grid">
-      <section class="publish-card"><small>DRAFT STATUS</small><h3>${state.dirty ? '有待处理修改' : '草稿已保存'}</h3><p>${dirtyText}</p><button class="secondary" data-save-draft type="button">保存当前草稿</button></section>
-      <section class="publish-card"><small>LIVE WEBSITE</small><h3>${isHomepage ? '飞鸟旅行官网' : '独立行程页'}</h3><p>发布不会让游客依赖后台数据库，官网继续以静态文件高速加载。</p><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(liveUrl)}" target="_blank" rel="noopener">查看官网 ↗</a></section>
-      <section class="publish-card full"><small>ONE-CLICK PUBLISH</small><h3>确认无误后更新${meta.label}</h3><p>${isHomepage ? '系统只更新官网首页内容；各个行程的独立草稿与详情页不会被覆盖。' : '系统会提交当前文字、响应式图片、独立行程页和首页地区目录；其他行程不会被覆盖。'}</p><button class="primary admin-only" data-open-publish type="button">检查并发布官网</button></section>
+      <section class="publish-card full publish-site-state ${hasLivePage ? 'is-live' : 'is-pending'}"><small>PUBLIC PAGE</small><h3>${hasLivePage ? `${isHomepage ? '官网首页' : '独立行程页'}已存在` : '独立行程页尚未生成'}</h3><p>${hasLivePage ? '此按钮打开游客当前能够访问的已发布版本。' : '这不是数据丢失；完成上面的第2步后，系统会创建页面并开放链接。'}</p>${liveAction}</section>
       <section class="publish-card full"><small>PUBLISH HISTORY</small><h3>最近发布记录</h3><div class="history-list">${history}</div></section>
     </div>
   </div>`;
@@ -1042,8 +1123,72 @@ function renderStaffEditor() {
   </div>`;
 }
 
+function conflictBackupForResource(resourceId = state.resourceId) {
+  const resource = state.resources[resourceId];
+  if (!resource) return null;
+  if (resource.conflictBackup?.content?.id === resourceId) return resource.conflictBackup;
+  try {
+    const cached = JSON.parse(localStorage.getItem(conflictBackupKey(resourceId)) || 'null');
+    if (cached?.content?.id !== resourceId) return null;
+    resource.conflictBackup = cached;
+    return cached;
+  } catch {
+    try {
+      localStorage.removeItem(conflictBackupKey(resourceId));
+    } catch {
+      // Ignore unavailable local storage.
+    }
+    return null;
+  }
+}
+
+function storeConflictBackup(resourceId = state.resourceId) {
+  const resource = state.resources[resourceId];
+  if (!resource?.content) return null;
+  const backup = {
+    content: clone(resource.content),
+    savedAt: new Date().toISOString(),
+    revision: Number(resource.revision) || 0,
+  };
+  resource.conflictBackup = backup;
+  try {
+    localStorage.setItem(conflictBackupKey(resourceId), JSON.stringify(backup));
+  } catch {
+    // The in-memory copy still protects the current editing session.
+  }
+  return backup;
+}
+
+function clearConflictBackup(resourceId = state.resourceId) {
+  const resource = state.resources[resourceId];
+  if (resource) resource.conflictBackup = null;
+  try {
+    localStorage.removeItem(conflictBackupKey(resourceId));
+  } catch {
+    // The in-memory copy has already been cleared.
+  }
+}
+
+function conflictRecoveryBanner() {
+  if (['journeys', 'staff'].includes(state.tab)) return '';
+  const backup = conflictBackupForResource();
+  if (!backup) return '';
+  return `<div class="conflict-recovery" role="status">
+    <div>
+      <small>RECOVERY COPY · 冲突恢复副本</small>
+      <strong>你在读取服务器最新版前的内容仍然保留</strong>
+      <span>保存时间：${escapeHtml(formatDate(backup.savedAt))}。需要时可恢复到当前编辑界面，再重新保存为一个新版本。</span>
+    </div>
+    <div>
+      <button class="secondary" data-dismiss-conflict-backup type="button">不再需要</button>
+      <button class="primary" data-restore-conflict-backup type="button">恢复我的内容</button>
+    </div>
+  </div>`;
+}
+
 function demoBanner() {
-  return DEMO_MODE ? '<div class="demo-banner">当前为本地演示模式：可以体验编辑和预览，但不会连接腾讯云或更新官网。</div>' : '';
+  const demo = DEMO_MODE ? '<div class="demo-banner">当前为本地演示模式：可以体验编辑和预览，但不会连接腾讯云或更新官网。</div>' : '';
+  return `${demo}${conflictRecoveryBanner()}`;
 }
 
 function renderEditor() {
@@ -1154,6 +1299,26 @@ function bindEditorEvents() {
     });
   });
 
+  elements.editorCanvas.querySelectorAll('[data-edit-route-day]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const index = Math.max(0, Math.min(Number(button.dataset.editRouteDay) || 0, state.content.days.length - 1));
+      state.selectedDay = index;
+      await selectTab('days');
+      const day = state.content.days[index];
+      const path = !day.title?.trim() ? `days.${index}.title` : `days.${index}.route`;
+      const control = elements.editorCanvas.querySelector(`[data-path="${CSS.escape(path)}"]`);
+      control?.focus();
+      control?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+
+  elements.editorCanvas.querySelectorAll('[data-restore-conflict-backup]').forEach((button) => {
+    button.addEventListener('click', restoreConflictBackup);
+  });
+  elements.editorCanvas.querySelectorAll('[data-dismiss-conflict-backup]').forEach((button) => {
+    button.addEventListener('click', dismissConflictBackup);
+  });
+
   elements.editorCanvas.querySelectorAll('[data-image-upload]').forEach((input) => {
     input.addEventListener('change', () => handleImageUpload(input));
   });
@@ -1196,6 +1361,9 @@ function updateSaveState(message) {
   elements.saveState.classList.toggle('dirty', state.dirty && !state.saving);
   elements.saveState.classList.toggle('saving', state.saving);
   elements.saveState.lastChild.textContent = message || (state.saving ? '正在保存…' : state.dirty ? '有未保存修改' : '内容已同步');
+  elements.saveButton.disabled = state.saving || !state.dirty;
+  elements.quickPublishButton.disabled = state.saving || state.dirty;
+  elements.quickPublishButton.textContent = state.dirty ? '先保存草稿' : '发布官网';
   updateSidebarContext();
 }
 
@@ -1211,6 +1379,33 @@ function saveLocalDraft(resourceId = state.resourceId) {
   } catch {
     // Local storage is an extra recovery layer; server drafts remain authoritative.
   }
+}
+
+function restoreConflictBackup() {
+  const resourceId = state.resourceId;
+  const resource = state.resources[resourceId];
+  const backup = conflictBackupForResource(resourceId);
+  if (!backup?.content) return showToast('没有找到可恢复的内容', 'error');
+  if (!confirm('恢复后，当前显示的服务器版本会被替换为恢复副本；点击“保存草稿”后会建立一个新版本。确定恢复吗？')) return;
+  resource.content = isJourneyResource(resourceId)
+    ? normalizeJourney(clone(backup.content))
+    : clone(backup.content);
+  resource.dirty = true;
+  resource.publishRequestId = null;
+  synchronizeContent();
+  saveLocalDraft(resourceId);
+  resetPreviewFocus(state.tab);
+  renderEditor();
+  renderPreview();
+  updateSaveState('已恢复，尚未保存');
+  showToast('已恢复你之前的内容，请检查后点击“保存草稿”');
+}
+
+function dismissConflictBackup() {
+  if (!confirm('确定删除此设备上的冲突恢复副本吗？服务器草稿不会受影响。')) return;
+  clearConflictBackup();
+  renderEditor();
+  showToast('本机冲突恢复副本已删除');
 }
 
 function restoreLocalDraft(resourceId, serverUpdatedAt) {
@@ -1313,7 +1508,12 @@ async function saveDraft() {
     saveLocalDraft(resourceId);
     if (resourceId === state.resourceId) {
       updateSaveState();
-      schedulePreview();
+      if (state.tab === 'publish') {
+        renderEditor();
+        renderPreview();
+      } else {
+        schedulePreview();
+      }
     }
     return showToast('演示模式：草稿已保存在此浏览器');
   }
@@ -1325,11 +1525,18 @@ async function saveDraft() {
     const result = await callCms('saveDraft', { resourceId, content: resource.content, revision: resource.revision });
     resource.revision = Number(result.revision) || resource.revision;
     resource.dirty = false;
+    clearConflictBackup(resourceId);
+    elements.editorCanvas.querySelector('.conflict-recovery')?.remove();
     if (isJourneyResource(resourceId)) upsertJourneyListFromContent(resource.content, { hasDraft: true });
     saveLocalDraft(resourceId);
     if (resourceId === state.resourceId) {
       updateSaveState(`已保存 ${formatTime(result.savedAt)}`);
-      schedulePreview();
+      if (state.tab === 'publish') {
+        renderEditor();
+        renderPreview();
+      } else {
+        schedulePreview();
+      }
     }
     showToast(`${RESOURCE_META[resourceId].shortLabel}草稿已安全保存`);
   } catch (error) {
@@ -1338,7 +1545,11 @@ async function saveDraft() {
     else showToast(error.message, 'error');
   } finally {
     state.saving = false;
-    elements.saveButton.disabled = false;
+    if (resourceId === state.resourceId) {
+      elements.saveButton.disabled = !resource.dirty;
+      elements.quickPublishButton.disabled = resource.dirty;
+      elements.quickPublishButton.textContent = resource.dirty ? '先保存草稿' : '发布官网';
+    }
     setTimeout(() => updateSaveState(), 2400);
   }
 }
@@ -1559,6 +1770,9 @@ function renderPublishPreview(data) {
   const latest = state.history[0];
   const isHomepage = state.resourceId === 'homepage';
   const meta = currentResourceMeta();
+  const latestDetail = latest
+    ? [latest.publishedByName || latest.publishedBy, formatDate(latest.publishedAt)].filter(Boolean).join(' · ') || '后台发布记录'
+    : '';
   const checks = errors.length
     ? errors.slice(0, 4).map((error) => `<li class="warning">${escapeHtml(error)}</li>`).join('')
     : isHomepage
@@ -1568,17 +1782,17 @@ function renderPublishPreview(data) {
     ? [`${data.selection.items.length}项飞鸟之选`, `${data.hero.slides.length}张封面 · ${data.ways.items.length}种出发方式`]
     : [`${data.days.length}天行程`, `${data.highlights.items.length}项亮点 · ${data.stays.groups.length}组住宿`];
   return `<header class="preview-system-head" data-preview-anchor="publish-status">
-      <span class="preview-system-badge ${state.dirty ? 'warning' : ''}">${state.dirty ? '有待处理修改' : '草稿状态正常'}</span>
+      <span class="preview-system-badge ${state.dirty ? 'warning' : ''}">${state.dirty ? '第1步未完成' : '第1步已完成'}</span>
       <small>PUBLISH CENTER</small><h2>${escapeHtml(meta.label)}发布检查</h2><p>这里是内部发布检查，不会作为官网页面展示给游客。</p>
     </header>
     <div class="preview-system-content">
       <div class="preview-status-grid">
-        <article><small>DRAFT</small><strong>${state.dirty ? '尚未保存' : '已保存'}</strong><span>${state.dirty ? '请先保存草稿' : '可以继续发布检查'}</span></article>
+        <article><small>STEP 01 · DRAFT</small><strong>${state.dirty ? '草稿未保存' : '草稿已保存'}</strong><span>${state.dirty ? '先完成第1步' : '可进入第2步'}</span></article>
         <article><small>CONTENT</small><strong>${escapeHtml(contentStatus[0])}</strong><span>${escapeHtml(contentStatus[1])}</span></article>
-        <article><small>VALIDATION</small><strong>${errors.length ? `${errors.length}项待完善` : '检查通过'}</strong><span>${errors.length ? '发布前需要处理' : '关键字段均已填写'}</span></article>
+        <article><small>STEP 02 · PUBLISH</small><strong>${errors.length ? `${errors.length}项待完善` : '发布检查通过'}</strong><span>${errors.length ? '发布前需要处理' : '关键字段均已填写'}</span></article>
       </div>
       <section class="preview-system-card" data-preview-anchor="publish-check"><small>PRE-PUBLISH CHECK</small><h3>发布检查</h3><ul class="preview-check-list">${checks}</ul></section>
-      <section class="preview-system-card" data-preview-anchor="publish-history"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || meta.defaultMessage)}</strong><span>${escapeHtml(latest.publishedByName || latest.publishedBy || '')} · ${escapeHtml(formatDate(latest.publishedAt))}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7))}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
+      <section class="preview-system-card" data-preview-anchor="publish-history"><small>LATEST PUBLISH</small><h3>最近发布</h3>${latest ? `<div class="preview-history"><strong>${escapeHtml(latest.message || meta.defaultMessage)}</strong><span>${escapeHtml(latestDetail)}</span><b>${escapeHtml(String(latest.commitSha || '').slice(0, 7) || '记录')}</b></div>` : '<p class="preview-empty">后台尚未读取到发布记录。</p>'}</section>
     </div>`;
 }
 
@@ -1667,13 +1881,14 @@ async function loadResource(resourceId, options = {}) {
   }
   const result = await callCms('getContent', { resourceId });
   if (result.content?.id && result.content.id !== resourceId) {
-    throw new Error(`云函数尚未支持${meta.label}。请部署 V33 asuka-cms 云函数包后重新进入后台。`);
+    throw new Error(`云函数尚未支持${meta.label}。请部署 V34.2 asuka-cms 云函数包后重新进入后台。`);
   }
   const nextContent = clone(result.content || meta.initial);
   const nextPublished = clone(result.published || result.content || meta.initial);
   resource.content = isJourneyResource(resourceId) ? normalizeJourney(nextContent) : nextContent;
   resource.published = isJourneyResource(resourceId) && nextPublished ? normalizeJourney(nextPublished) : nextPublished;
   resource.draftInfo = result.draftInfo || null;
+  resource.sitePageReady = resourceId === 'homepage' || result.sitePageReady === true;
   resource.revision = Number(result.draftInfo?.revision) || 0;
   resource.publishRequestId = null;
   resource.dirty = false;
@@ -1837,6 +2052,7 @@ async function createJourney(event) {
     const resource = registerJourneyResource({ id: resourceId, title }, content);
     resource.content = content;
     resource.published = null;
+    resource.sitePageReady = false;
     resource.revision = Number(result.revision) || 1;
     resource.draftInfo = { revision: resource.revision, updatedAt: result.savedAt };
     resource.dirty = false;
@@ -1872,33 +2088,55 @@ function closeModal() {
 }
 
 function openDraftConflictModal(message) {
-  openModal(`<p class="editor-kicker">NEWER DRAFT FOUND</p><h2>有同事保存了更新版本</h2><p>${escapeHtml(message)}</p><div class="publish-checks"><div>✓ 你当前输入的内容仍保留在此页面和本机临时草稿中</div><div>✓ 系统没有覆盖同事的新版本</div></div><div class="modal-actions"><button class="secondary" data-close-modal type="button">先返回复制内容</button><button class="primary" id="reloadLatestDraft" type="button">读取同事的最新版</button></div>`);
+  storeConflictBackup();
+  openModal(`<p class="editor-kicker">NEWER DRAFT FOUND</p><h2>发现服务器上有较新的草稿</h2><p>${escapeHtml(message)}</p><div class="publish-checks"><div>✓ 这也可能是当前账号在另一标签页或另一台设备保存的版本</div><div>✓ 你当前输入的内容已另存为本机恢复副本，不会因重新读取而消失</div></div><div class="modal-actions modal-actions--conflict"><button class="secondary" data-close-modal type="button">返回继续编辑</button><button class="primary" id="reloadLatestDraft" type="button">读取服务器最新版</button></div>`);
   elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
   elements.modalContent.querySelector('#reloadLatestDraft').addEventListener('click', reloadLatestDraft);
 }
 
 async function reloadLatestDraft() {
+  const resourceId = state.resourceId;
+  const resource = state.resources[resourceId];
   const button = elements.modalContent.querySelector('#reloadLatestDraft');
   button.disabled = true;
   button.textContent = '正在读取…';
   try {
-    await loadResource(state.resourceId, { force: true, restoreLocal: false });
+    storeConflictBackup(resourceId);
+    const result = await callCms('getDraft', { resourceId });
+    if (!result.content || (result.content.id && result.content.id !== resourceId)) {
+      throw new Error('服务器草稿与当前行程不一致，请勿继续覆盖并联系管理员检查。');
+    }
+    resource.content = isJourneyResource(resourceId)
+      ? normalizeJourney(clone(result.content))
+      : clone(result.content);
+    resource.draftInfo = result.draftInfo || null;
+    resource.revision = Number(result.draftInfo?.revision) || 0;
+    resource.dirty = false;
+    resource.loaded = true;
     synchronizeContent();
-    saveLocalDraft();
+    saveLocalDraft(resourceId);
+    if (isJourneyResource(resourceId)) {
+      registerJourneyResource({ id: resourceId, title: resource.content.card?.title }, resource.content);
+      upsertJourneyListFromContent(resource.content, { hasDraft: true });
+    }
     closeModal();
     renderEditor();
     renderPreview();
     updateSaveState();
-    showToast('已读取同事保存的最新草稿');
+    showToast('已读取服务器最新版；你之前的输入仍可从页面顶部恢复');
   } catch (error) {
     button.disabled = false;
     button.textContent = '重新读取';
-    showToast(error.message, 'error');
+    const message = error.code === 'UNKNOWN_ACTION' || /GitHub 返回错误：\s*Not Found/i.test(error.message || '')
+      ? '后台云函数仍是旧版本。请先部署 V34.2 的 asuka-cms 云函数，再重新读取；当前内容和恢复副本均未丢失。'
+      : error.message;
+    showToast(message, 'error');
   }
 }
 
 function openPublishModal() {
   if (state.actor?.role !== 'admin') return showToast('只有管理员可以发布官网', 'error');
+  if (state.dirty) return showToast('请先保存后台草稿，再进行第2步发布官网', 'error');
   const meta = currentResourceMeta();
   const isHomepage = state.resourceId === 'homepage';
   const errors = validateContentForPublish();
@@ -1920,6 +2158,8 @@ function openPublishModal() {
 }
 
 async function publishSite() {
+  const resourceId = state.resourceId;
+  const resource = state.resources[resourceId];
   const button = elements.modalContent.querySelector('#confirmPublish');
   const message = elements.modalContent.querySelector('#publishMessage')?.value.trim();
   button.disabled = true;
@@ -1927,9 +2167,11 @@ async function publishSite() {
   try {
     if (DEMO_MODE) {
       await new Promise((resolve) => setTimeout(resolve, 700));
-      state.dirty = false;
+      resource.dirty = false;
+      resource.sitePageReady = true;
       updateSaveState();
-      schedulePreview();
+      renderEditor();
+      renderPreview();
       openModal('<p class="editor-kicker">DEMO COMPLETE</p><h2>演示发布完成</h2><p>正式环境会在这里显示 GitHub 提交地址和最新版官网地址。</p><div class="modal-actions"><button class="primary" data-close-modal type="button">完成</button></div>');
       elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
       return;
@@ -1943,13 +2185,15 @@ async function publishSite() {
       requestId: state.publishRequestId,
     });
     if (result.draftAdvanced) {
+      resource.sitePageReady = true;
       state.published = stripClientInternal(clone(state.content));
       state.publishRequestId = null;
       state.dirty = true;
       if (isJourneyResource()) upsertJourneyListFromContent(state.content, { hasDraft: true });
       saveLocalDraft();
       updateSaveState('同事另有新草稿');
-      schedulePreview();
+      renderEditor();
+      renderPreview();
       openModal(`<p class="editor-kicker">PUBLISHED · NEW DRAFT FOUND</p><h2>官网已发布，但同事又保存了新草稿</h2><p>官网已经收到你刚才确认的版本；为避免覆盖同事随后保存的内容，系统没有改写后台草稿。</p><div class="publish-checks"><div>✓ 官网版本 ${escapeHtml(result.sha.slice(0, 7))}</div><div>✓ 同事的新草稿已安全保留</div></div><div class="modal-actions"><button class="secondary" data-close-modal type="button">先保留当前页面</button><button class="primary" id="reloadLatestDraft" type="button">读取同事的最新版</button></div>`);
       elements.modalContent.querySelector('[data-close-modal]').addEventListener('click', closeModal);
       elements.modalContent.querySelector('#reloadLatestDraft').addEventListener('click', reloadLatestDraft);
@@ -1958,13 +2202,15 @@ async function publishSite() {
     }
     state.revision = Number(result.revision) || state.revision;
     state.dirty = false;
+    resource.sitePageReady = true;
     state.content = stripClientInternal(state.content);
     state.published = clone(state.content);
     if (isJourneyResource()) upsertJourneyListFromContent(state.content, { hasDraft: false });
     state.publishRequestId = null;
     saveLocalDraft();
     updateSaveState(`已发布 ${formatTime(result.publishedAt)}`);
-    schedulePreview();
+    renderEditor();
+    renderPreview();
     openModal(`<p class="editor-kicker">PUBLISHED</p><h2>${result.alreadyCurrent ? '官网已经是相同内容' : '官网已提交更新'}</h2><p>${result.alreadyCurrent ? '系统识别到本次内容已经发布过，因此没有重复创建 GitHub 提交。' : 'GitHub Pages 正在生成最新版，通常需要1—3分钟。'}</p><div class="publish-checks"><div>✓ GitHub 版本 ${escapeHtml(result.sha.slice(0, 7))}</div><div>✓ 官网静态内容已确认</div></div><div class="modal-actions"><a class="secondary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(result.commitUrl)}" target="_blank" rel="noopener">查看 GitHub</a><a class="primary" style="display:inline-flex;align-items:center;text-decoration:none" href="${escapeHtml(result.siteUrl)}" target="_blank" rel="noopener">打开最新版官网</a></div>`);
     showToast(result.alreadyCurrent ? '官网已经是最新版' : '官网更新已提交');
   } catch (error) {
