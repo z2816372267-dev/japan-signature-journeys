@@ -38,6 +38,14 @@ test('静态生成结果幂等并保留通用行程目录', () => {
   assert.match(once, /href="journeys\/kanto-6d\/"/);
 });
 
+test('首页地区入口连接通用目录并按地区筛选已发布行程', () => {
+  assert.match(html, /openChildPanel\('regionProducts','heart'\)/);
+  assert.match(html, /id="regionProducts"/);
+  assert.match(html, /cards\.filter\(card=>card\.dataset\.region===regionId\)/);
+  assert.match(html, /href="#regionProducts" onclick="return regionAction/);
+  assert.doesNotMatch(html, /kantoProducts|kantoJourney|kantoInquiry|productInquiryForm/);
+});
+
 test('官网逐日使用后台当前的行车里程与预计驾驶时间', () => {
   const rendered = renderJourneyPage(data);
   for (const day of data.days) {

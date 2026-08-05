@@ -11,6 +11,7 @@ const contentPath = path.join(root, 'content', 'journeys', 'kanto-6d.json');
 const catalogPath = path.join(root, 'content', 'journeys', 'index.json');
 const homepagePath = path.join(root, 'content', 'homepage.json');
 const errors = [];
+const homepageHtml = fs.readFileSync(indexPath, 'utf8');
 
 function required(value, label, max = 1000) {
   if (typeof value !== 'string' || !value.trim()) errors.push(`${label} 不能为空`);
@@ -78,10 +79,20 @@ homepage.selection?.items?.forEach((item, index) => checkImage(item.image, `home
 homepage.ways?.items?.forEach((item, index) => checkImage(item.image, `homepage.ways.items[${index}].image`));
 
 try {
-  renderSite(fs.readFileSync(indexPath, 'utf8'), catalog, homepage);
+  renderSite(homepageHtml, catalog, homepage);
   renderJourneyPage(data);
 } catch (error) {
   errors.push(`静态生成失败：${error.message}`);
+}
+
+if (!homepageHtml.includes("openChildPanel('regionProducts','heart')")) {
+  errors.push('首页地区入口没有连接到通用行程目录 regionProducts');
+}
+if (!homepageHtml.includes('id="regionProducts"')) {
+  errors.push('首页缺少通用行程目录 regionProducts');
+}
+for (const legacyId of ['kantoProducts', 'kantoJourney', 'kantoInquiry', 'productInquiryForm']) {
+  if (homepageHtml.includes(legacyId)) errors.push(`首页仍引用已移除的旧版组件：${legacyId}`);
 }
 
 for (const asset of ['journeys/journey.css', 'journeys/journey.js']) {
