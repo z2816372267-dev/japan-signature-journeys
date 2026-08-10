@@ -13,7 +13,7 @@
   --gold: #b69a62;
   --shadow: 0 24px 70px rgba(23, 35, 30, 0.1);
   --radius: 18px;
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
 }
 
@@ -3990,4 +3990,92 @@ button:disabled {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
   }
+}
+
+/* V34.3: keep the editor, live previews and public pages on one type system. */
+.login-visual::after,
+.visual-wordmark strong,
+.brand-mark,
+.brand-lockup strong,
+.login-copy h1,
+.nav-item-mark,
+.current-journey-card > strong,
+.cms-topbar h1,
+.profile-chip > span:first-child,
+.section-intro h2,
+.form-card-head h3,
+.preview-hero h2,
+.preview-section-title h3,
+.preview-facts strong,
+.preview-map-card h4,
+.preview-booking h4,
+.preview-day-head h4,
+.preview-highlight-card h4,
+.preview-stay-card h4,
+.preview-system-head::after,
+.preview-system-head h2,
+.preview-status-grid strong,
+.preview-system-card h3,
+.preview-home-hero h2,
+.preview-home-intro h3,
+.preview-home-selection-list h4,
+.preview-home-way-grid h4,
+.publish-step-number,
+.publish-step-content h3,
+.publish-card h3,
+.modal h2,
+.journey-library-actions strong,
+.journey-library-copy h3,
+.season-template strong,
+.route-source-head strong,
+.route-source-days button > b,
+.preview-route-days b {
+  font-family: var(--font-display);
+}
+
+.visual-wordmark strong,
+.login-copy h1,
+.preview-home-hero h2,
+.journey-library-copy h3 {
+  font-weight: 500;
+}
+
+.brand-lockup strong {
+  letter-spacing: .12em;
+}
+
+.preview-home-hero h2 {
+  letter-spacing: .045em;
+}
+
+.journey-library-copy h3,
+.preview-section-title h3,
+.preview-home-intro h3,
+.preview-home-selection-list h4,
+.preview-home-way-grid h4 {
+  letter-spacing: .035em;
+}
+
+.eyebrow,
+.cms-topbar p,
+.preview-toolbar small,
+.editor-kicker,
+.visual-wordmark span,
+.brand-lockup small,
+.preview-focus-tag,
+.preview-hero small,
+.preview-section-title small,
+.preview-map-card > small,
+.preview-booking small,
+.preview-system-head > small,
+.preview-home-hero-copy > small,
+.preview-home-intro small,
+.publish-step-content small,
+.publish-card small,
+.route-source-head small,
+.day-sync-strip small,
+.conflict-recovery small,
+.route-source-days button > small,
+.preview-route-days small {
+  font-family: var(--font-latin);
 }

@@ -10,6 +10,7 @@
 - `content/homepage.json`：首页封面、品牌介绍、飞鸟之选与三种出发方式
 - `content/journeys/kanto-6d.json`：关东6日行程结构化内容
 - `journeys/`：独立行程静态页面及其共用样式、脚本
+- `fonts/`：官网、行程页与后台共用的本地字体及许可文件
 - `admin-src/`：后台源代码
 - `admin/`：构建后的后台静态文件
 - `cloudbase/functions/asuka-cms/`：CloudBase 登录、草稿、图片与发布云函数
@@ -37,4 +38,4 @@ npm run build
 - 浏览器端只包含公开的 CloudBase 环境 ID，不包含 SecretId、SecretKey 或 GitHub Token。
 - 工作人员使用独立邮箱登录；编辑与管理员权限分开。
 - 官网访客不依赖 CloudBase 数据库或云函数，后台故障不会拖慢官网。
-当前后台版本：V34.2
+当前后台版本：V34.3

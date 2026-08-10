@@ -1,0 +1,19 @@
+/*
+ * 飞鸟旅行 V34.3 字体系统
+ * 标题：本地化 Noto Serif SC / Source Han Serif SC 兼容字形
+ * 正文与界面：设备原生中文黑体，避免额外网络请求
+ */
+@font-face {
+  font-family: "Asuka Serif SC";
+  src: url("./asuka-serif-sc-500.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  unicode-range: U+3000-303F, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF;
+}
+
+:root {
+  --font-display: "Asuka Serif SC", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", STSong, SimSun, serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+  --font-latin: "Avenir Next", "Segoe UI", Arial, sans-serif;
+}

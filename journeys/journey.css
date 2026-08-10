@@ -1,3 +1,5 @@
+@import url("../fonts/asuka-fonts.css?v=34.3");
+
 :root {
   --paper: #f3efe6;
   --paper-deep: #e8e1d4;
@@ -8,8 +10,8 @@
   --line: rgba(38, 53, 47, .17);
   --white: #fff;
   --shadow: 0 24px 70px rgba(35, 45, 40, .11);
-  --serif: "Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --serif: var(--font-display);
+  --sans: var(--font-ui);
 }
 
 body[data-season="spring"] {
@@ -1487,5 +1489,76 @@ body[data-season="winter"] .season-motif i {
     scroll-behavior: auto !important;
     transition-duration: .01ms !important;
     animation-duration: .01ms !important;
+  }
+}
+
+/* V34.3: restrained editorial headings, highly readable system-sans body copy. */
+.brand strong,
+.hero-content h1,
+.section-heading h2,
+.fact-grid strong,
+.route-summary strong,
+.highlight-card h3,
+.day-toggle strong,
+.metric-card > strong,
+.metric-routes b,
+.stay-grid h3,
+.note-grid h3,
+.booking-card h2,
+.enquiry-section header h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+}
+
+.hero-content h1 {
+  letter-spacing: .055em;
+}
+
+.section-heading h2 {
+  letter-spacing: .045em;
+}
+
+.highlight-card h3,
+.day-toggle strong,
+.stay-grid h3,
+.note-grid h3,
+.booking-card h2 {
+  letter-spacing: .04em;
+}
+
+.hero-copy,
+.section-heading > div,
+.route-line span,
+.day-story,
+.practical-grid span,
+.stay-grid li,
+.booking-card dd,
+.enquiry-section header > div,
+.site-footer p {
+  font-family: var(--sans);
+  letter-spacing: .015em;
+}
+
+.hero-kicker,
+.section-heading > p,
+.enquiry-section header > p,
+.fact-grid small,
+.booking-card > small,
+.highlight-card small,
+.stay-grid article > small,
+.route-summary article > span,
+.day-toggle > span:first-child,
+.metric-card > small,
+.practical-grid small,
+.site-footer small,
+.brand span,
+.season-label {
+  font-family: var(--font-latin);
+}
+
+@media (max-width: 760px) {
+  .hero-content h1,
+  .section-heading h2 {
+    letter-spacing: .035em;
   }
 }

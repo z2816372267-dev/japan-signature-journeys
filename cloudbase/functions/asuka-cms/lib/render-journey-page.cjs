@@ -271,7 +271,8 @@ function renderJourneyPage(input) {
   <meta property="og:url" content="${escapeHtml(canonical)}">
   <meta property="og:image" content="${SITE_ORIGIN}/${heroFallback}">
   <link rel="preload" as="image" href="${heroFallback}" fetchpriority="high">
-  <link rel="stylesheet" href="journeys/journey.css?v=33">
+  <link rel="stylesheet" href="fonts/asuka-fonts.css?v=34.3">
+  <link rel="stylesheet" href="journeys/journey.css?v=34.3">
   <script type="application/ld+json">${jsonLd}</script>
   <script src="journeys/journey.js?v=33" defer></script>
 </head>

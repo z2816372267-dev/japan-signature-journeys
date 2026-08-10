@@ -91,6 +91,40 @@ test('官网地图保持原始比例且桌面标题采用规整均衡换行', ()
   assert.match(journeyStyles, /@media \(max-width:\s*760px\)[\s\S]*?\.section-heading\s*\{[\s\S]*?display:\s*block/);
 });
 
+test('全站字体使用本地WOFF2标题字与系统黑体正文', () => {
+  const fontCss = fs.readFileSync(path.join(root, 'fonts', 'asuka-fonts.css'), 'utf8');
+  const fontFile = fs.readFileSync(path.join(root, 'fonts', 'asuka-serif-sc-500.woff2'));
+  const adminHtml = fs.readFileSync(path.join(root, 'admin-src', 'index.html'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
+  const journeyStyles = fs.readFileSync(path.join(root, 'journeys', 'journey.css'), 'utf8');
+  const journeyPage = renderJourneyPage(data);
+  const maps = [
+    'images/maps/kanto-route-map-v24.svg',
+    'images/maps/kanto-route-map-mobile-v24.svg',
+  ].map((file) => fs.readFileSync(path.join(root, file), 'utf8'));
+
+  assert.equal(fontFile.subarray(0, 4).toString('ascii'), 'wOF2');
+  assert.ok(fontFile.length < 750 * 1024);
+  assert.match(fontCss, /font-family:\s*"Asuka Serif SC"/);
+  assert.match(fontCss, /font-display:\s*swap/);
+  assert.match(fontCss, /--font-ui:[^;]*"PingFang SC"[^;]*"Microsoft YaHei"/);
+  assert.doesNotMatch(fontCss, /https?:\/\//);
+  assert.match(html, /fonts\/asuka-fonts\.css\?v=34\.3/);
+  assert.match(adminHtml, /\.\.\/fonts\/asuka-fonts\.css\?v=34\.3/);
+  assert.match(journeyPage, /fonts\/asuka-fonts\.css\?v=34\.3/);
+  assert.match(adminStyles, /font-family:\s*var\(--font-ui\)/);
+  assert.match(adminStyles, /\.preview-home-hero h2[\s\S]*?font-family:\s*var\(--font-display\)/);
+  assert.match(journeyStyles, /^@import url\("\.\.\/fonts\/asuka-fonts\.css\?v=34\.3"\);/);
+  assert.match(journeyStyles, /--serif:\s*var\(--font-display\)/);
+  assert.match(journeyStyles, /\.hero-copy,[\s\S]*?font-family:\s*var\(--sans\)/);
+  for (const map of maps) {
+    assert.match(map, /<g id="asuka-map-glyphs">/);
+    assert.match(map, /<use href="#asuka-glyph-/);
+    assert.doesNotMatch(map, /<text\b[^>]*>[^<]*[\u3400-\u9fff]/);
+    assert.doesNotMatch(map, /data:font|Asuka Map Serif|LXGW WenKai|Nimbus Sans/);
+  }
+});
+
 test('后台右侧内容跟随七个左侧栏目切换', () => {
   const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
   const adminStyles = fs.readFileSync(path.join(root, 'admin-src', 'styles.css'), 'utf8');
@@ -423,14 +457,14 @@ test('封面行动区使用低干扰深色按钮并显示探索别样日本', ()
   assert.match(rendered, /class="link-light hero-secondary"/);
   assert.match(rendered, /\.hero-primary\{[^}]*background:#10231cba[^}]*backdrop-filter:blur\(7px\)/);
   assert.match(rendered, /\.hero-primary:focus-visible,\.hero-secondary:focus-visible/);
-  assert.match(rendered, /2026-07-24-v32-homepage-cms/);
+  assert.match(rendered, /2026-08-10-v34\.3-typography/);
 });
 
 test('统一后台为首页与动态行程保存独立草稿和预览图片', () => {
   const adminSource = fs.readFileSync(path.join(root, 'admin-src', 'main.js'), 'utf8');
   const adminHtml = fs.readFileSync(path.join(root, 'admin-src', 'index.html'), 'utf8');
   assert.match(adminHtml, /data-tab="home"/);
-  assert.match(adminHtml, /V34\.2 · 动线、草稿与发布修复/);
+  assert.match(adminHtml, /V34\.3 · 全站字体与排版统一/);
   assert.match(adminSource, /homepage: createResourceState\(initialHomepage\)/);
   assert.match(adminSource, /'kanto-6d': createResourceState\(initialJourney\)/);
   assert.match(adminSource, /`asuka-cms:\$\{resourceId\}:draft`/);
